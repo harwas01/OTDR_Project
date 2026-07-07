@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Menu</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 40px; text-align: center; }
+        .logout-btn { display: inline-block; padding: 10px 20px; background-color: #dc3545; color: white; text-decoration: none; border-radius: 4px; margin-top: 20px; }
+    </style>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+	<script type="text/javascript" charset="utf-8">
+	
+		
+		const serverHost = window.location.host; 
+		url = "http://" + serverHost
+		console.log('Server Host:', url);
+		const socket = io(url);
+
+		socket.on('connect', () => {
+			console.log('Connected to Raspberry Pi server!');
+		});
+					
+		function selectPage(page) {
+			switch(page)
+			{ 
+				case 1:				
+					window.location.href = "{{ url_for('setup_page') }}";
+					break;
+				case 2:
+					window.location.href = "{{ url_for('test_page') }}";
+					break;
+				case 3:
+					window.location.href = "{{ url_for('admin_page') }}";
+					break;
+			}
+		}
+		
+		function doReset() {
+			console.log("doReset");
+			socket.emit('do_reset', {cmd: 'RST'})
+		}
+		
+		function toggleOtdrMode() {
+			val1 = 0;
+			if(document.getElementById('DownloadMode').checked)
+				val1 = 1;
+			socket.emit('otdr_mode', {cmd: 'DLMODE', arg1: val1});
+		}
+			
+	</script
+</head>
+<body>
+
+    <h1>Welcome, {{ current_user.username }}!</h1>
+    <p>Select From the following pages.</p>
+	<button id="setup" style="padding: 10px 20px; font-size: 18px;" onclick="selectPage(1)">Setup</button>
+	<button id="test"  style="padding: 10px 20px; font-size: 18px;" onclick="selectPage(2)">Test</button>
+	{% if current_user.is_authenticated and current_user.username == 'admin' %}
+		<button id="admin" style="padding: 10px 20px; font-size: 18px;" onclick="selectPage(3)">Admin</button>    
+	{% endif %}
+	<br>
+    <a href="{{ url_for('logout') }}" class="logout-btn">Log Out</a>
+	<br>
+	<br>
+	<button id="reset"  style="padding: 10px 20px; font-size: 18px;" onclick="doReset()">Reset</button>
+	<br>
+	<br>
+	<input type="radio" id="OTDRMode" name="mode" value="otdr" onclick=toggleOtdrMode() checked />
+	<label for="OTDRMode">OTDR Mode</label>
+	<input type="radio" id="DownloadMode" name="mode" value="download" onclick=toggleOtdrMode()  />
+	<label for="DownloadMode">Download Mode</label>
+
+</body>
+</html>

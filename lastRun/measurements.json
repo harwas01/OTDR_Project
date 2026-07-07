@@ -1,0 +1,162 @@
+{
+    "filename": "OTDR-2100-GETFILE-20260625162439.sor",
+    "format": 2,
+    "version": "2.00",
+    "mapblock": {
+        "nbytes": 134,
+        "nblocks": 8
+    },
+    "blocks": {
+        "GenParams": {
+            "name": "GenParams",
+            "version": "2.00",
+            "size": 40,
+            "pos": 134,
+            "order": 0
+        },
+        "SupParams": {
+            "name": "SupParams",
+            "version": "2.00",
+            "size": 24,
+            "pos": 174,
+            "order": 1
+        },
+        "FxdParams": {
+            "name": "FxdParams",
+            "version": "2.00",
+            "size": 92,
+            "pos": 198,
+            "order": 2
+        },
+        "KeyEvents": {
+            "name": "KeyEvents",
+            "version": "2.00",
+            "size": 78,
+            "pos": 290,
+            "order": 3
+        },
+        "LinkParams": {
+            "name": "LinkParams",
+            "version": "2.00",
+            "size": 47,
+            "pos": 368,
+            "order": 4
+        },
+        "DataPts": {
+            "name": "DataPts",
+            "version": "2.00",
+            "size": 81304,
+            "pos": 415,
+            "order": 5
+        },
+        "UserName": {
+            "name": "UserName",
+            "version": "2.00",
+            "size": 715,
+            "pos": 81719,
+            "order": 6
+        },
+        "Cksum": {
+            "name": "Cksum",
+            "version": "2.00",
+            "size": 8,
+            "pos": 82434,
+            "order": 7
+        }
+    },
+    "GenParams": {
+        "language": "CH",
+        "cable ID": " ",
+        "fiber ID": " ",
+        "fiber type": "G.652 (standard SMF)",
+        "wavelength": "1310 nm",
+        "location A": " ",
+        "location B": " ",
+        "cable code/fiber type": " ",
+        "build condition": "BC (as-built)",
+        "user offset": "0",
+        "user offset distance": "0",
+        "operator": " ",
+        "comments": " "
+    },
+    "SupParams": {
+        "supplier": " ",
+        "OTDR": " ",
+        "OTDR S/N": " ",
+        "module": " ",
+        "module S/N": " ",
+        "software": " ",
+        "other": " "
+    },
+    "FxdParams": {
+        "date/time": "Tue Jun 16 16:00:51 2026 (1781625651 sec)",
+        "unit": "mt (meters)",
+        "wavelength": "1310.0 nm",
+        "acquisition offset": 0,
+        "acquisition offset distance": 0,
+        "number of pulse width entries": 1,
+        "pulse width": "20000 ns",
+        "sample spacing": "0.0125 usec",
+        "num data points": 40642,
+        "index": "1.467000",
+        "BC": "-79.40 dB",
+        "num averages": 4655,
+        "averaging time": "1 sec",
+        "range": 103.81872084216086,
+        "acquisition range distance": 1038149,
+        "front panel offset": 0,
+        "noise floor level": 14000,
+        "noise floor scaling factor": 1000,
+        "power offset first point": 0,
+        "loss thr": "0.050 dB",
+        "refl thr": "-40.000 dB",
+        "EOT thr": "4.070 dB",
+        "trace type": "ST[standard trace]",
+        "X1": 0,
+        "Y1": 0,
+        "X2": 0,
+        "Y2": 0,
+        "resolution": 2.5544687968643487
+    },
+    "KeyEvents": {
+        "num events": 1,
+        "event 1": {
+            "type": "119999LS {auto} reflection",
+            "distance": "0.000",
+            "slope": "0.000",
+            "splice loss": "0.000",
+            "refl loss": "0.000",
+            "comments": " ",
+            "end of prev": "0.000",
+            "start of curr": "0.000",
+            "end of curr": "8.174",
+            "start of next": "10.729",
+            "peak": "0.000"
+        },
+        "Summary": {
+            "total loss": 0.0,
+            "ORL": 0.0,
+            "loss start": 0.0,
+            "loss end": 0.0,
+            "ORL start": 0.0,
+            "ORL finish": 0.0
+        }
+    },
+    "DataPts": {
+        "_datapts_params": {
+            "xscaling": 1,
+            "offset": "STV"
+        },
+        "num data points": 40642,
+        "num traces": 1,
+        "num data points 2": 40642,
+        "scaling factor": 1.0,
+        "max before offset": 65.535,
+        "min before offset": 30.928
+    },
+    "Cksum": {
+        "checksum_ours": 25979,
+        "checksum": 19119,
+        "match": false
+    }
+}

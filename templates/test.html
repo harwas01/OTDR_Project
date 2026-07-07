@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8">
+		<title>OTDR Test</title>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+		<!-- <script src="https://socket.io"></script> -->
+		<script type="text/javascript" charset="utf-8">
+		
+			const serverHost = window.location.host; 
+			url = "http://" + serverHost
+			console.log('Server Host:', url);
+			const socket = io(url);
+
+			socket.on('connect', () => {
+				console.log('Connected to Raspberry Pi server!');
+			});
+
+			// Listen for device data
+			socket.on('device_data', (data) => {
+				if(data.source == 'serial')
+				{
+					//console.log(data.payload);
+					let id = 'chan' + data.payload;
+					//console.log(id);
+					document.getElementById(id).style.color = 'green';
+				}
+			});
+			
+			// graph data
+			let coords = [];
+			let minX = 999.9;
+			let maxX = 0.0;
+			let minY = 999.9;
+			let maxY = 0.0;
+			socket.on('data_chunk', (msg) => {
+				//console.log("received a chunk");
+				msg.points.forEach(point => {
+					//console.log(`Received Point -> x: ${point.x}, y: ${point.y}`);
+					x = parseFloat(point.x);
+					y = parseFloat(point.y);
+					if(x < minX)
+						minX = x;
+					if(x > maxX)
+						maxX = x;
+					if(y < minY)
+						minY = y;
+					if(y > maxY)
+						maxY = y;
+					coords.push([x, y])
+				});
+				// Append or process point dictionary chunks here
+			});
+
+			socket.on('data_complete', () => {
+				console.log('All data transmission complete!');
+				//for(let i=0; i<coords.length; i++)
+				//{
+				//	console.log(coords[i]);
+				//}
+				console.log("minX = %f, maxX = %f, minY = %f, maxY = %f", minX, maxX, minY, maxY);
+				const canvas = document.getElementById('lineChart');
+				const ctx = canvas.getContext('2d');
+				let border = 40;
+				let hCharWidth = 40;
+				let vCharWidth = 20;
+				ctx.canvas.width = 800 + border;
+				ctx.canvas.height = 450 + border;
+				ctx.font = '20px monospace';
+				
+
+				//outline
+				ctx.beginPath();                  					
+				ctx.moveTo(border, 0);               					
+				ctx.lineTo(ctx.canvas.width, 0);              	
+				ctx.lineTo(ctx.canvas.width , ctx.canvas.height - border); 	
+				ctx.lineTo(border, ctx.canvas.height - border);
+				ctx.closePath();               	// Link back to the start point
+
+				ctx.lineWidth = 2;           	// Adjust outline thickness
+				ctx.strokeStyle = 'green';   	// Set outline color
+				ctx.stroke();  
+				
+				ctx.fillStyle = 'red';
+				// vertical hash marks
+				let vStep = ctx.canvas.height / 5;
+				let vVal = (maxY - minY)/5;
+				for(let i = 1; i < 6; i++)
+				{
+					ctx.beginPath();
+					ctx.moveTo(0, ctx.canvas.height - (vStep * i));
+					ctx.lineTo(border, ctx.canvas.height - (vStep * i));
+					ctx.closePath();
+					ctx.lineWidth = 1;           	  	
+					ctx.stroke(); 
+					
+					let vString = Math.round(vStep * i).toString().padStart(2, '0');
+					ctx.fillText(vString, 0, ctx.canvas.height - (vStep * i) + vCharWidth);
+				}	
+				
+				ctx.fillText("DBm", 0, ctx.canvas.height - border);
+				
+				// horizontal hash marks
+				let hStep = ctx.canvas.width / 7;
+				let hVal = (maxX - minX)/7;
+				for(let i = 1; i < 8; i++)
+				{
+					ctx.beginPath();
+					ctx.moveTo((hStep * i), ctx.canvas.height - border);
+					ctx.lineTo((hStep * i), ctx.canvas.height);
+					ctx.closePath();
+					ctx.lineWidth = 1;           	
+					ctx.stroke(); 
+					
+					let hString = Math.round(hStep * i).toString().padStart(2, '0');
+					ctx.fillText(hString, (hStep * i) - hCharWidth, ctx.canvas.height);
+				}
+				
+				ctx.fillText("nSec", 0, ctx.canvas.height);
+				
+				// graph
+				let startX = border;
+				let startY = 0;
+				ctx.lineWidth = 1;             	// Adjust outline thickness
+				ctx.strokeStyle = 'black';    	// Set outline color
+				for(let i = 0; i < coords.length; i++)
+				{
+					ctx.beginPath();
+					ctx.moveTo(startX, startY);
+					xCoord = Math.trunc(((coords[i][0] - minX) / maxX) * ctx.canvas.width);
+					yCoord = Math.trunc(ctx.canvas.height - ((coords[i][1] - minY) / maxY) * ctx.canvas.height);		// inverted
+					startX = xCoord + border;
+					startY = yCoord - border;
+					ctx.lineTo(xCoord + border, yCoord - border);
+					ctx.stroke();
+				}		
+				coords.length = 0;
+			});
+    		
+			function setInputChannel(channel) {
+				for(let i = 1; i < 13; i++) {
+					id = 'chan' + i;
+					if (channel != i) 
+						document.getElementById(id).style.color = '';
+					else
+						document.getElementById(id).style.color = 'red';
+				}
+				socket.emit('send_command', { target: 'serial', command: channel });
+			}
+			
+			function startMeasureOTDR() {
+				console.log("startMeasureOTDR");
+				socket.emit('start_measure');
+			}
+			
+			function stopMeasureOTDR() {
+				socket.emit('stop_measure');
+				console.log("stopMeasureOTDR");
+			}
+			
+		</script>
+	</head>
+	<body style="font-family: sans-serif; padding: 20px;">
+		<h2>Test</h2>	
+		<div class="chart-container">
+			<canvas id="lineChart" width="600" height="450"></canvas>
+		</div>
+		
+		<h3>Optical Input Channel</h3>
+		<button id="chan1" onclick="setInputChannel('1')">Chan 1</button>
+		<button id="chan2" onclick="setInputChannel('2')">Chan 2</button>
+		<button id="chan3" onclick="setInputChannel('3')">Chan 3</button>
+		<button id="chan4" onclick="setInputChannel('4')">Chan 4</button>
+		<button id="chan5" onclick="setInputChannel('5')">Chan 5</button>
+		<button id="chan6" onclick="setInputChannel('6')">Chan 6</button>
+		<button id="chan7" onclick="setInputChannel('7')">Chan 7</button>
+		<button id="chan8" onclick="setInputChannel('8')">Chan 8</button>
+		<button id="chan9" onclick="setInputChannel('9')">Chan 9</button>
+		<button id="chan10" onclick="setInputChannel('10')">Chan 10</button>
+		<button id="chan11" onclick="setInputChannel('11')">Chan 11</button>
+		<button id="chan12" onclick="setInputChannel('12')">Chan 12</button>
+		<br>
+		<h3>Measure</h3>
+		<button id="startMeasure" onclick="startMeasureOTDR()">Start</button>
+		<button id="stopMeasure" onclick="stopMeasureOTDR()">Stop</button>
+		<h3> </h3>
+		<a href="{{ url_for('gotoDashboard') }}">
+			<button type="button">Main Menu</button>
+		</a>
+	</body>
+</html>

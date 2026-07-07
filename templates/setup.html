@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8">
+		<title>OTDR Setup</title>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+		<!-- <script src="https://socket.io"></script> -->
+	</head>
+	<body style="font-family: sans-serif; padding: 20px;">
+		<h2>Setup</h2>		
+		<h3>Sampling Time</h3>
+		<input type="radio" id="sampleTimes" name="samplingMode" value="times" onclick=toggleSampling() checked />
+		<label for="samplingMode">Times</label>
+		<input type="radio" id="sampleSeconds" name="samplingMode" value="seconds" onclick=toggleSampling()  />
+		<label for="samplingMode">Seconds</label>
+		<input type="radio" id="sampleAuto" name="samplingMode" value="auto" onclick=toggleSampling() />
+		<label for="samplingMode">Auto</label>
+		<br>
+		<input type="range" id="samplingTimeRange" min="1" max="9999" value="5000" class="slider" oninput="updateSamplingText(this.value)" >
+		<input type="text" id="samplingTimeInput" oninput="updateSamplingSlider(this.value)" placeholder="5000" style="width: 120px"; >
+		<h3>Average Mode</h3>	
+		<input type="radio" id="average" name="averageMode" checked />
+		<label for="averageMode">Average Mode</label>
+		<input type="radio" id="realTime" name="averageMode" />
+		<label for="averageMode">Real Time Mode</label>
+		<h3>Set Test Parameters</h3>
+		<input type="checkbox" id="distanceMode" name="distanceMode" onclick=toggleDistance(this.checked)>
+		<label for="distanceMode">Distance Mode Automatic (meters)</label><br>		
+		<input type="range" id="distanceRange" min="500" max="200000" value="100000" class="slider" oninput="updateDistanceText(this.value)" >
+		<input type="text" id="distanceInput" oninput="updateDistanceSlider(this.value)" placeholder="100000" style="width: 120px"; >
+		<br>		
+		<input type="checkbox" id="pulseWidthMode" name="pulseWidthMode"onclick=togglePulseWidth(this.checked)>
+		<label for="pulseWidthMode">Pulse Width Mode Automatic (nsec)</label><br>
+		<input type="range" id="pulseWidthRange" min="3" max="20000" value="10000" class="slider" oninput="updatePulseWidthText(this.value)" >
+		<input type="text" id="pulseWidthInput" oninput="updatePulseWidthSlider(this.value)" placeholder="10000" style="width: 120px"; >
+		<br>
+		<input type="radio" id="precision" name="precisionMode" checked />
+		<label for="precision">Precision</label>
+		<input type="radio" id="fast" name="precisionMode" />
+		<label for="precision">Fast</label>	
+		<h3>Connection Loss Threshold (db)</h3>		
+		<input type="range" id="connectionLossRange" min="1" max="999" value="500" class="slider" oninput="updateLossText(this.value)" >
+		<input type="text" id="connectionLossInput" oninput="updateLossSlider(this.value)" placeholder="5.00" min = "0.01" max = "9.99" style="width: 120px"; >
+		<h3>Reflection Threshold (db)</h3>		
+		<input type="range" id="reflectionRange" min="-650" max="-140" value="-400" class="slider" oninput="updateReflectionText(this.value)" >
+		<input type="text" id="reflectionInput" oninput="updateReflectionSlider(this.value)" placeholder="-40.0" min = "-65.0" max = "-14.0" style="width: 120px"; >
+		<h3>Terminal Threshold (db)</h3>		
+		<input type="range" id="terminalRange" min="1" max="999" value="500" class="slider" oninput="updateTerminalText(this.value)" >
+		<input type="text" id="terminalInput" oninput="updateTerminalSlider(this.value)" placeholder="5.00" min = "0.01" max = "9.99"  style="width: 120px"; >
+		<h3>Refractivity (db)</h3>		
+		<input type="range" id="refractivityRange" min="1300" max="1800" value="1500" class="slider" oninput="updateRefractivityText(this.value)" >
+		<input type="text" id="refractivityInput" oninput="updateRefractivitySlider(this.value)" placeholder="1.500" min = "1.300" max = "1.800"  style="width: 120px"; >
+		<h3>Scattering Coefficient (db)</h3>		
+		<input type="range" id="scatteringRange" min="-9000" max="-4000" value="-6500" class="slider" oninput="updateScatteringText(this.value)" >
+		<input type="text" id="scatteringInput" oninput="updateScatteringSlider(this.value)" placeholder="-65.00" min = "-90.00" max = "-40.00" style="width: 120px"; >
+		<h3>Date/Time</h3>	
+		<label for="dateInput">Date:</label>		
+		<input type="date" id="dateInput" name="dateInput" value="2026-06-22">
+		<label for="timeInput">Time:</label>
+		<input type="time" id="timeInput" name="timeInput" value="07:00">
+		<h3>IP Settings</h3>		
+		<label for="ip-address">IP Address:</label>
+		<input type="text" id="ip-address" name="ip-address" pattern="^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$" placeholder="192.168.1.100" required>
+		<label for="port">Port:</label>
+		<input type="number" id="port" name="port" min="1" max="65535" placeholder="80" required>
+		<label for="subnet-mask">Subnet Mask:</label>
+		<input type="text" id="subnet-mask" name="subnet-mask" pattern="^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$" placeholder="255.255.255.0" required>
+		<label for="gateway">Gateway:</label>
+		<input type="text" id="gateway" name="gateway" pattern="^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$" placeholder="192.168.1.1" required>
+		<br>
+		<br>
+		<br>
+		<button onclick="updateConfig()">Set Parameters</button>
+		<h3> </h3>
+		<a href="{{ url_for('gotoDashboard') }}">
+			<button type="button">Main Menu</button>
+		</a>
+		<script type="text/javascript" charset="utf-8">
+		
+			const serverHost = window.location.host; 
+			url = "http://" + serverHost
+			console.log('Server Host:', url);
+			const socket = io(url);
+
+			socket.on('connect', () => {
+				console.log('Connected to Raspberry Pi server!');
+			});
+
+			// Listen for device data
+			socket.on('device_data', (data) => {
+			});
+			
+			config = JSON.parse({{ data | tojson | safe }});
+			
+			//console.log(config);
+			//ALA
+			if (Object.hasOwn(config, 'ALA'))
+			{
+				if(config.ALA[0] == "0")
+					document.getElementById('sampleTimes').checked = true;
+				else if(config.ALA[0] == "1")
+					document.getElementById('sampleSeconds').checked = true;
+				else
+					document.getElementById('sampleAuto').checked = true;
+				toggleSampling();
+				document.getElementById('samplingTimeInput').value = config.ALA[1];
+				updateSamplingSlider(config.ALA[1]);
+			}
+			//AVG
+			if (Object.hasOwn(config, 'AVG'))
+			{			
+				if(config.AVG[0] == "0")
+					document.getElementById('realTime').checked = true;
+				else if(config.AVG[0] == "1")
+					document.getElementById('average').checked = true;	
+			}
+			//STP
+			if (Object.hasOwn(config, 'STP'))
+			{
+				document.getElementById('distanceMode').checked = (config.STP[0] == "1");
+				toggleDistance();
+				document.getElementById('distanceInput').value = config.STP[1];	
+				updateDistanceSlider(config.STP[1]);	
+				document.getElementById('pulseWidthMode').checked = (config.STP[2] == "1");
+				togglePulseWidth();
+				document.getElementById('pulseWidthInput').value = config.STP[3];	
+				updatePulseWidthSlider(config.STP[3]);		
+				if(config.STP[4] == "0")
+					document.getElementById('fast').checked = true;
+				else if(config.STP[4] == "1")
+					document.getElementById('precision').checked = true;
+			}
+			//THS
+			if (Object.hasOwn(config, 'THS'))
+			{
+				document.getElementById('connectionLossInput').value = config.THS[0];	
+				updateLossSlider(config.THS[0]);
+			}
+			//THR2
+			if (Object.hasOwn(config, 'THR2'))
+			{
+				document.getElementById('reflectionInput').value = config.THR2[0];	
+				updateReflectionSlider(config.THR2[0]);	
+			}
+			//THF
+			if (Object.hasOwn(config, 'THF'))
+			{			
+				document.getElementById('terminalInput').value = config.THF[0];	
+				updateTerminalSlider(config.THF[0]);
+			}
+			//IOR
+			if (Object.hasOwn(config, 'IOR'))
+			{
+				document.getElementById('refractivityInput').value = config.IOR[0];	
+				updateRefractivitySlider(config.IOR[0]);
+			}
+			//BSL2
+			if (Object.hasOwn(config, 'BSL2'))
+			{	
+				document.getElementById('scatteringInput').value = config.BSL2[0];	
+				updateScatteringSlider(config.BSL2[0]);
+			}
+			//DATE2
+			if (Object.hasOwn(config, 'DATE2'))
+			{
+				const date = config.DATE2[0] + '-' + config.DATE2[1] + '-' + config.DATE2[3];
+				document.getElementById('dateInput').value  = date;
+				const time = config.DATE2[3] + ':' + config.DATE2[4] + ':00';
+				document.getElementById('timeInput').value  = time;
+			}
+			// NET
+			if (Object.hasOwn(config, 'NET'))
+			{			
+				document.getElementById('ip-address').value  = config.NET[0];			
+				document.getElementById('port').value        = config.NET[1];			
+				document.getElementById('subnet-mask').value = config.NET[2];			
+				document.getElementById('gateway').value     = config.NET[3];	
+			}
+			// end init
+			
+			let next = true;
+			
+			const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+			
+			socket.on('response_data', function(response) {
+				console.log(response.payload);
+				next = true;
+			});
+			
+			async function updateConfig() {
+				console.log("updateConfig");
+				for(let i = 0; i<10; i++)
+				{
+					console.log(i);
+					let val1 = '';
+					let val2 = '';
+					let val3 = '';
+					let val4 = '';
+					let val5 = '';
+					let val6 = '';
+					switch(i)
+					{
+						case 0:
+							if(document.getElementById('sampleTimes').checked)
+								val1 = '0';
+							else if(document.getElementById('sampleSeconds').checked)
+								val1 = '1';	
+							else if(document.getElementById('sampleAuto').checked)
+								val1 = '2';		
+							val2 = document.getElementById('samplingTimeInput').value;
+							socket.emit('update_json', {cmd: 'ALA', arg1: val1, arg2: val2, arg3: val3, arg4: val4, arg5: val5, arg6: val6});
+							next = false;
+							break;
+						case 1:				
+							if(document.getElementById('realTime').checked)
+								val1 = '0';
+							else if(document.getElementById('average').checked)
+								val1 = '1';	
+							socket.emit('update_json', {cmd: 'AVG', arg1: val1, arg2: val2, arg3: val3, arg4: val4, arg5: val5, arg6: val6});
+							next = false;
+							break;
+						case 2:
+							val1 = '0';
+							if(document.getElementById('distanceMode').checked)
+								val1 = '1';
+							val2 = document.getElementById('distanceInput').value;
+							val3 = '0';
+							if(document.getElementById('pulseWidthMode').checked)
+								val3 = '1';							
+							val4 = document.getElementById('pulseWidthInput').value;	
+							if(document.getElementById('precision').checked)
+								val5 = '1';
+							else if(document.getElementById('fast').checked)
+								val5 = '0';	
+							socket.emit('update_json', {cmd: 'STP', arg1: val1, arg2: val2, arg3: val3, arg4: val4, arg5: val5, arg6: val6});
+							next = false;
+							break;
+						case 3:
+							val1 = document.getElementById('connectionLossInput').value;
+							socket.emit('update_json', {cmd: 'THS', arg1: val1, arg2: val2, arg3: val3, arg4: val4, arg5: val5, arg6: val6});
+							next = false;
+							break;
+						case 4:
+							val1 = document.getElementById('reflectionInput').value;
+							socket.emit('update_json', {cmd: 'THR2', arg1: val1, arg2: val2, arg3: val3, arg4: val4, arg5: val5, arg6: val6});
+							next = false;
+							break;
+						case 5:
+							val1 = document.getElementById('terminalInput').value;
+							socket.emit('update_json', {cmd: 'THF', arg1: val1, arg2: val2, arg3: val3, arg4: val4, arg5: val5, arg6: val6});
+							next = false;
+							break;
+						case 6:
+							val1 = document.getElementById('refractivityInput').value;
+							socket.emit('update_json', {cmd: 'IOR', arg1: val1, arg2: val2, arg3: val3, arg4: val4, arg5: val5, arg6: val6});
+							next = false;
+							break;
+						case 7:
+							val1 = document.getElementById('scatteringInput').value;
+							socket.emit('update_json', {cmd: 'BSL2', arg1: val1, arg2: val2, arg3: val3, arg4: val4, arg5: val5, arg6: val6});
+							next = false;
+							break;						
+						case 8:
+							dateValue = document.getElementById('dateInput').value;
+							[val1, val2, val3] = dateValue.split('-');
+							timeValue = document.getElementById('timeInput').value;
+							[val4, val5, val6] = timeValue.split(':');
+							socket.emit('update_json', {cmd: 'DATE2', arg1: val1, arg2: val2, arg3: val3, arg4: val4, arg5: val5, arg6: val6});
+							next = false;
+							break;
+						case 9:
+							val1 = document.getElementById('ip-address').value;
+							val2 = document.getElementById('port').value;
+							val3 = document.getElementById('subnet-mask').value;
+							val4 = document.getElementById('gateway').value;
+							socket.emit('update_json', {cmd: 'NET', arg1: val1, arg2: val2, arg3: val3, arg4: val4, arg5: val5, arg6: val6});
+							next = false;
+							break;
+					}
+					while(!next)
+						await sleep(5)	// 5msec
+				}
+				socket.emit('update_OTDR', {cmd: 'UPDATE'});
+			}
+			
+			function setInputChannel(channel) {
+				document.getElementById('optical-input').value = channel;
+				for(let i = 1; i < 13; i++) {
+					id = 'chan' + i;
+					if (channel != i) 
+						document.getElementById(id).style.color = '';
+					else
+						document.getElementById(id).style.color = 'red';
+				}
+				socket.emit('send_command', { target: 'serial', command: channel });
+			}
+			
+			function isNumber(value) {
+				return !isNaN(value) && !isNaN(parseFloat(value));
+			}
+
+			function updateSamplingText(val) {
+				document.getElementById('samplingTimeInput').value = val;
+			}
+
+			function updateSamplingSlider(val) {
+				if(isNumber(val) && (val > 0) && (val < 10000))
+					document.getElementById('samplingTimeRange').value = val;
+			}
+					
+			function toggleSampling() {
+				let val = document.getElementById('sampleAuto').checked;
+				if(val)
+				{
+					document.getElementById('samplingTimeInput').style.visibility = "hidden";
+					document.getElementById('samplingTimeRange').style.visibility = "hidden";
+				}
+				else
+				{
+					document.getElementById('samplingTimeInput').style.visibility = "visible";
+					document.getElementById('samplingTimeRange').style.visibility = "visible";
+				}					
+			}
+			
+			function updateDistanceText(val) {
+				document.getElementById('distanceInput').value = val;
+			}
+
+			function updateDistanceSlider(val) {
+				if(isNumber(val) && (val > 0) && (val < 200000))
+					document.getElementById('distanceRange').value = val;
+			}	
+			
+			function toggleDistance(val) {
+					if(val)
+					{
+						document.getElementById('distanceInput').style.visibility = "hidden";
+						document.getElementById('distanceRange').style.visibility = "hidden";
+					}
+					else
+					{
+						document.getElementById('distanceInput').style.visibility = "visible";
+						document.getElementById('distanceRange').style.visibility = "visible";
+					}					
+			}
+
+			function updatePulseWidthText(val) {
+				document.getElementById('pulseWidthInput').value = val;
+			}
+
+			function updatePulseWidthSlider(val) {
+				if(isNumber(val) && (val > 2) && (val < 20000))
+					document.getElementById('pulseWidthRange').value = val;
+			}		
+
+			function togglePulseWidth(val) {
+				if(val)
+				{
+					document.getElementById('pulseWidthInput').style.visibility = "hidden";
+					document.getElementById('pulseWidthRange').style.visibility = "hidden";
+				}
+				else
+				{
+					document.getElementById('pulseWidthInput').style.visibility = "visible";
+					document.getElementById('pulseWidthRange').style.visibility = "visible";
+				}
+			}
+
+			function updateLossText(val) {
+				document.getElementById('connectionLossInput').value = val / 100;
+			}
+
+			function updateLossSlider(val) {
+				if(isNumber(val) && (val > .01) && (val < 10.00))
+					document.getElementById('connectionLossRange').value = val * 100;
+			}									
+
+			function updateReflectionText(val) {
+				document.getElementById('reflectionInput').value = val / 10;
+			}
+
+			function updateReflectionSlider(val) {
+				if(isNumber(val) && (val < -13) && (val > -65))
+					document.getElementById('reflectionRange').value = val * 10;
+			}			
+			
+			function updateTerminalText(val) {
+				document.getElementById('terminalInput').value = val / 100;
+			}
+
+			function updateTerminalSlider(val) {
+				if(isNumber(val) && (val > .01) && (val < 10.00))
+					document.getElementById('terminalRange').value = val * 100;
+			}			
+
+			function updateRefractivityText(val) {
+				document.getElementById('refractivityInput').value = val / 1000;
+			}
+
+			function updateRefractivitySlider(val) {
+				if(isNumber(val) && (val > 1.299) && (val < 1.800))
+					document.getElementById('refractivityRange').value = val * 1000;
+			}			
+			
+			function updateScatteringText(val) {
+				document.getElementById('scatteringInput').value = val / 100;
+			}
+
+			function updateScatteringSlider(val) {
+				if(isNumber(val) && (val < -40) && (val > -90))
+					document.getElementById('scatteringRange').value = val * 100;
+			}
+		</script>
+	</body>
+</html>

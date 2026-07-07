@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8">
+		<title>OTDR Admin</title>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+	</head>
+	<body style="font-family: sans-serif; padding: 20px;">
+		<h2>Admin</h2>		
+		<h3>Ethernet Connection Time</h3>
+		<input type="range" id="connectionTimeRange" min="1" max="7200" value="3600" class="slider" oninput="updateConnectionTime(this.value)" >
+		<input type="text" id="connectionTimeInput" oninput="updateConnectionTimeSlider(this.value)" placeholder="5000" style="width: 120px"; >
+		<br>
+		<h3>Wavelength</h3>
+		<label for="wavelength-select">Wavelength:</label>
+		<select id="wavelength-select">
+			<option value="850">850 nm</option>
+			<option value="1310">1310 nm</option>
+			<option value="1550">1550 nm</option>
+		</select>
+		<br>
+		<br>
+		<button onclick="updateConfig()">Set Parameters</button>
+		<h3>Download Software</h3>
+		<form>
+			<input type="file" id="file-upload" name="filename">
+			<br>
+			<br>
+			<button onclick="downloadSoftware()">Download</button>
+		</form>
+		<h3> </h3>
+		<a href="{{ url_for('gotoDashboard') }}">
+			<button type="button">Main Menu</button>
+		</a>
+		<script type="text/javascript" charset="utf-8">
+		
+			const serverHost = window.location.host; 
+			url = "http://" + serverHost
+			console.log('Server Host:', url);
+			const socket = io(url);
+
+			socket.on('connect', () => {
+				console.log('Connected to Raspberry Pi server!');
+			});
+			
+			// Listen for device data
+			socket.on('device_data', (data) => {
+			});
+			
+			config = JSON.parse({{ data | tojson | safe }});
+			
+			// screen controls init
+			//console.log(config);
+			//CONNTM
+			if (Object.hasOwn(config, 'CONNTM'))
+			{
+				document.getElementById('connectionTimeInput').value = config.CONNTM[0];
+				updateConnectionTimeSlider(config.CONNTM[0]);
+			}
+			//WLS
+			if (Object.hasOwn(config, 'WLS'))
+			{			
+				document.getElementById('wavelength-select').value = config.WLS[0];
+			}
+			// end screen controls init
+			
+			let next = true;
+			
+			const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+			
+			socket.on('response_data', function(response) {
+				console.log(response.payload);
+				next = true;
+			})
+			
+			function isNumber(value) {
+				return !isNaN(value) && !isNaN(parseFloat(value));
+			}
+			
+			function updateConnectionTime(val) {
+				document.getElementById('connectionTimeInput').value = val;
+			}
+
+			function updateConnectionTimeSlider(val) {
+				console.log("updateConnectionTimeSlider");
+				if(isNumber(val) && (val > 0) && (val < 7200))
+					document.getElementById('connectionTimeRange').value = val;
+			}
+			
+			async function updateConfig() {
+				for(let i = 0; i<2; i++)
+				{
+					console.log(i);
+					let val1 = '';
+					let val2 = '';
+					let val3 = '';
+					let val4 = '';
+					let val5 = '';
+					let val6 = '';
+					switch(i)
+					{
+						case 0:
+							val1 = document.getElementById('connectionTimeInput').value;
+							socket.emit('update_json', {cmd: 'CONNTM', arg1: val1, arg2: val2, arg3: val3, arg4: val4, arg5: val5, arg6: val6});
+							next = false;
+							break;
+						case 1:				
+							val1 = document.getElementById('wavelength-select').value;;	
+							socket.emit('update_json', {cmd: 'WLS', arg1: val1, arg2: val2, arg3: val3, arg4: val4, arg5: val5, arg6: val6});
+							next = false;
+							break;				
+					}
+					while(!next)
+						await sleep(5)	// 5msec
+				}
+				socket.emit('update_OTDR', {cmd: 'UPDATE'});
+			}
+		</script>
+	</body>

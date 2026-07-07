@@ -1,0 +1,66 @@
+2026-06-24 12:52:22 *ERROR* : 
+ERROR: SOCKET Cannot connect to OTDR:'str' object cannot be interpreted as an integer
+
+2026-06-24 13:11:09 *ERROR* : 
+ERROR: SOCKET Cannot connect to OTDR:connect(): port must be 0-65535.
+
+2026-06-24 13:12:03 *ERROR* : 
+ERROR: SOCKET Cannot connect to OTDR:[WinError 10060] A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond
+
+2026-06-24 13:26:43 *ERROR* : [setOtdrALA] set OTDR ALA with parameter(s) ERROR!
+2026-06-25 12:47:05 *ERROR* : 
+ERROR: SOCKET Cannot connect to OTDR:[WinError 10060] A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond
+
+2026-06-25 14:07:34 *ERROR* : 
+ERROR: SOCKET Recv From OTDR with error:timed out
+
+2026-06-25 14:19:13 *ERROR* : [getOtdrAverageMode] get OTDR AverageMode with ERROR response:ANS0!
+2026-06-25 14:25:04 *ERROR* : 
+ERROR: SOCKET Recv From OTDR with error:timed out
+
+2026-06-25 14:47:20 *ERROR* : 
+ERROR: SOCKET Cannot connect to OTDR:[WinError 10060] A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond
+
+2026-06-25 14:47:30 *ERROR* : [getOtdrAverageMode] get OTDR AverageMode with ERROR response:ANS0!
+2026-06-25 14:54:18 *ERROR* : 
+ERROR: SOCKET Recv From OTDR with error:timed out
+
+2026-06-25 14:59:23 *ERROR* : 
+ERROR: SOCKET Recv From OTDR with error:timed out
+
+2026-06-30 10:32:27 *ERROR* : 
+ERROR: SOCKET Cannot connect to OTDR:[WinError 10060] A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond
+
+2026-06-30 14:21:02 *ERROR* : 
+ERROR: SOCKET Cannot connect to OTDR:[WinError 10060] A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond
+
+2026-06-30 14:27:58 *ERROR* : 
+ERROR: SOCKET Cannot connect to OTDR:[WinError 10060] A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond
+
+2026-06-30 14:33:03 *ERROR* : 
+ERROR: SOCKET Cannot connect to OTDR:[WinError 10060] A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond
+
+2026-06-30 14:43:21 *ERROR* : [setOtdrALA] set OTDR ALA with ERROR response:ANS21!
+2026-06-30 15:32:38 *ERROR* : [setOtdrALA] set OTDR ALA with ERROR response:ANS21!
+2026-06-30 15:40:16 *ERROR* : [setOtdrALA] set OTDR ALA with ERROR response:ANS21!
+2026-06-30 15:43:20 *ERROR* : [setOtdrALA] set OTDR ALA with ERROR response:ANS21!
+2026-06-30 15:43:50 *ERROR* : [setOtdrALA] set OTDR ALA with ERROR response:ANS21!
+2026-06-30 15:45:30 *ERROR* : [setOtdrALA] set OTDR ALA with ERROR response:ANS21!
+2026-06-30 15:52:30 *ERROR* : [setOtdrALA] set OTDR ALA with ERROR response:ANS21!
+2026-06-30 15:53:13 *ERROR* : [setOtdrALA] set OTDR ALA with ERROR response:ANS21!
+2026-06-30 15:54:19 *ERROR* : [setOtdrALA] set OTDR ALA with ERROR response:ANS21!
+2026-06-30 16:05:23 *ERROR* : [setOtdrALA] set OTDR ALA with ERROR response:ANS21!
+2026-06-30 16:09:00 *ERROR* : [setOtdrALA] set OTDR ALA with ERROR response:ANS21!
+2026-06-30 16:10:24 *ERROR* : [setOtdrALA] set OTDR ALA with ERROR response:ANS21!
+2026-06-30 16:10:37 *ERROR* : [setOtdrALA] set OTDR ALA with ERROR response:ANS21!
+2026-06-30 16:12:16 *ERROR* : [setOtdrAverageMode] set OTDR AVG mode with ERROR response:ANS21!
+2026-06-30 16:18:29 *ERROR* : [setOtdrALA] set OTDR ALA with ERROR response:ANS21!
+2026-06-30 16:22:44 *ERROR* : [setOtdrALA] set OTDR ALA with ERROR response:ANS21!
+2026-07-01 09:28:56 *ERROR* : [setOtdrALA] set OTDR ALA with ERROR response:ANS21!
+2026-07-01 09:32:35 *ERROR* : [setOtdrALA] set OTDR ALA with ERROR response:ANS21!
+2026-07-01 09:39:12 *ERROR* : [setOtdrALA] set OTDR ALA with ERROR response:ANS21!
+2026-07-01 09:44:00 *ERROR* : [setOtdrALA] set OTDR ALA with ERROR response:ANS21!
+2026-07-01 11:09:12 *ERROR* : 
+ERROR: SOCKET Cannot connect to OTDR:[WinError 10060] A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond
+
+2026-07-01 11:21:52 *ERROR* : [setOtdrALA] set OTDR ALA with ERROR response:ANS21!
