@@ -39,13 +39,6 @@
 			console.log("doReset");
 			socket.emit('do_reset', {cmd: 'RST'})
 		}
-		
-		function toggleOtdrMode() {
-			val1 = 0;
-			if(document.getElementById('DownloadMode').checked)
-				val1 = 1;
-			socket.emit('otdr_mode', {cmd: 'DLMODE', arg1: val1});
-		}
 			
 	</script
 </head>
@@ -64,11 +57,6 @@
 	<br>
 	<button id="reset"  style="padding: 10px 20px; font-size: 18px;" onclick="doReset()">Reset</button>
 	<br>
-	<br>
-	<input type="radio" id="OTDRMode" name="mode" value="otdr" onclick=toggleOtdrMode() checked />
-	<label for="OTDRMode">OTDR Mode</label>
-	<input type="radio" id="DownloadMode" name="mode" value="download" onclick=toggleOtdrMode()  />
-	<label for="DownloadMode">Download Mode</label>
 
 </body>
 </html>

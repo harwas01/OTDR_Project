@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+# Tabbing in this file does not use spaces - cannot use editor that replaces tabs with spaces - generates indentation errors
+
 import socket
 import math
 import sys
@@ -1287,9 +1289,12 @@ def StartMeasure(client,Vendor='OPWILL',OtdrMode=1,Lambda_nm=1550,MeasureLength_
 	FilePath = FilePath.strip()
 	FilePath = FilePath.rstrip("/")
 	FilePath = FilePath.rstrip("\\")
+    
+	tracePath = "None"
+
 	if client == None:
 		LOG.error("CLientSocketConnectToOtdr Error,Quit StartMeasure!")
-		return False
+		return False, tracePath
 	if Vendor == 'OPWILL':
 		ret = OtdrParamInit(client)
 		if ret is True:
@@ -1299,11 +1304,11 @@ def StartMeasure(client,Vendor='OPWILL',OtdrMode=1,Lambda_nm=1550,MeasureLength_
 		Mode = getOtdrMode(client=client)
 		if Mode == 1:
 			LOG.error("Otdr exits measurement in download mode!")
-			return False
+			return False, tracePath
 		status_meas	= getOtdrLD(client)
 		if status_meas == 1:
 			LOG.error("Otdr is under test, please wait for the end to test again!")
-			return False
+			return False, tracePath
 
 		if MeasureLength_m <= 0: # 0 for auto mode
 			MeasureMode = 'Auto'
@@ -1485,6 +1490,7 @@ def StartMeasure(client,Vendor='OPWILL',OtdrMode=1,Lambda_nm=1550,MeasureLength_
 		# tracedata data uses matplotlib module to creast 2D trace graph
 		axisX = []
 		axisY = []
+		tracePath = filepath + filename_GFTrace + '.txt';
 		with open(filepath + filename_GFTrace + '.txt', "a+") as fgft:
 			fgft.write("Tracedata Num:%d\n"%len(tracedata))
 			fgft.write("Tracedata:\n")
@@ -1528,9 +1534,9 @@ def StartMeasure(client,Vendor='OPWILL',OtdrMode=1,Lambda_nm=1550,MeasureLength_
 							EndLoss = results["KeyEvents"]["Summary"]["loss end"],
 							TotalReflectLoss = results["KeyEvents"]["Summary"]["ORL"]
 							)
-		return True
+		return True, tracePath
 	else:
-		return False
+		return False, tracePath
 
 def StopMeasure(client):
 	ret = setOtdrLD(client = client,status=CMD_HOST_STOP_MEASURE)

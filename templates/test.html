@@ -14,6 +14,7 @@
 
 			socket.on('connect', () => {
 				console.log('Connected to Raspberry Pi server!');
+				socket.emit('refresh_test_page');
 			});
 
 			// Listen for device data
@@ -23,9 +24,12 @@
 					//console.log(data.payload);
 					let id = 'chan' + data.payload;
 					//console.log(id);
-					document.getElementById(id).style.color = 'green';
+					document.getElementById(id).style.backgroundColor  = 'green';
+					valueStr = "Channel " + data.payload + " Selected";
+					document.getElementById("inputChannelStatus").value = valueStr;
 				}
 			});
+			
 			
 			// graph data
 			let coords = [];
@@ -51,6 +55,11 @@
 				});
 				// Append or process point dictionary chunks here
 			});
+			
+			console.log("MinX = " + minX);
+			console.log("MaxX = " + maxX);
+			console.log("MinY = " + minY);
+			console.log("MaxY = " + maxY);
 
 			socket.on('data_complete', () => {
 				console.log('All data transmission complete!');
@@ -61,11 +70,11 @@
 				console.log("minX = %f, maxX = %f, minY = %f, maxY = %f", minX, maxX, minY, maxY);
 				const canvas = document.getElementById('lineChart');
 				const ctx = canvas.getContext('2d');
-				let border = 40;
-				let hCharWidth = 40;
-				let vCharWidth = 20;
-				ctx.canvas.width = 800 + border;
-				ctx.canvas.height = 450 + border;
+				let border = 60;
+				let innerBorder = 20;	// so graph does not reach axis
+				let totalBorder = border + innerBorder;
+				ctx.canvas.width = 800 + totalBorder;
+				ctx.canvas.height = 450 + totalBorder;
 				ctx.font = '20px monospace';
 				
 
@@ -82,56 +91,80 @@
 				ctx.stroke();  
 				
 				ctx.fillStyle = 'red';
+				
 				// vertical hash marks
-				let vStep = ctx.canvas.height / 5;
-				let vVal = (maxY - minY)/5;
-				for(let i = 1; i < 6; i++)
+				let vBottom = ctx.canvas.height - totalBorder;
+				let vTop = innerBorder;	
+				let vHash = 6;
+				let vStep = (vBottom - vTop) / vHash;		// counting up from bottom				
+				let vVal = maxY/vHash;
+				// console.log("vStep = " + vStep);				
+				// console.log("vBottom = " + vBottom);				
+				// console.log("vTop = " + vTop);
+				// console.log("vVal = " + vVal);
+				for(let i = 0; i < vHash+1; i++)
 				{
 					ctx.beginPath();
-					ctx.moveTo(0, ctx.canvas.height - (vStep * i));
-					ctx.lineTo(border, ctx.canvas.height - (vStep * i));
+					ctx.moveTo(border * .75, vBottom - (vStep * i));
+					ctx.lineTo(border, vBottom - (vStep * i));
 					ctx.closePath();
 					ctx.lineWidth = 1;           	  	
-					ctx.stroke(); 
+					ctx.stroke();	
 					
-					let vString = Math.round(vStep * i).toString().padStart(2, '0');
-					ctx.fillText(vString, 0, ctx.canvas.height - (vStep * i) + vCharWidth);
+					vFloat = vVal * i;
+					vDisplay = vFloat.toFixed(1)
+					let vString = vDisplay.toString().padStart(1, '0');
+					
+					//let vString = (vVal * i).toString().padStart(2, '0');
+					// console.log(vString);
+					ctx.fillText(vString, 0, vBottom - (vStep * i) + 9);
 				}	
 				
-				ctx.fillText("DBm", 0, ctx.canvas.height - border);
+				ctx.fillText("dB", 0, ctx.canvas.height - 20);
+				ctx.fillText("(Atten)", 0, ctx.canvas.height);
+
 				
 				// horizontal hash marks
-				let hStep = ctx.canvas.width / 7;
-				let hVal = (maxX - minX)/7;
-				for(let i = 1; i < 8; i++)
+				let hRight = ctx.canvas.width - innerBorder;
+				let hLeft = totalBorder;
+				let hHash = 6;
+				let hStep = (hRight - hLeft) / hHash;
+				let hVal = maxX/hHash;
+				// console.log("hStep = " + hStep);				
+				// console.log("hLeft = " + hLeft);				
+				// console.log("hRight = " + hRight);				
+				// console.log("hVal = " + hVal);
+				for(let i = 0; i < hHash+1; i++)
 				{
 					ctx.beginPath();
-					ctx.moveTo((hStep * i), ctx.canvas.height - border);
-					ctx.lineTo((hStep * i), ctx.canvas.height);
+					ctx.moveTo(hLeft + (hStep * i), ctx.canvas.height - border);
+					ctx.lineTo(hLeft + (hStep * i), ctx.canvas.height - border * .60);
 					ctx.closePath();
 					ctx.lineWidth = 1;           	
 					ctx.stroke(); 
 					
-					let hString = Math.round(hStep * i).toString().padStart(2, '0');
-					ctx.fillText(hString, (hStep * i) - hCharWidth, ctx.canvas.height);
+					hFloat = hVal * i;
+					hDisplay = hFloat.toFixed(1)
+					let hString = hDisplay.toString().padStart(1, '0');
+					ctx.fillText(hString, hLeft + (hStep * i) - 15, ctx.canvas.height - 20);
 				}
 				
-				ctx.fillText("nSec", 0, ctx.canvas.height);
+				ctx.fillText("kM (Distance)", ctx.canvas.width/2, ctx.canvas.height);
 				
 				// graph
-				let startX = border;
-				let startY = 0;
+				let startX = hLeft;
+				let startY = vBottom;
 				ctx.lineWidth = 1;             	// Adjust outline thickness
 				ctx.strokeStyle = 'black';    	// Set outline color
 				for(let i = 0; i < coords.length; i++)
 				{
 					ctx.beginPath();
 					ctx.moveTo(startX, startY);
-					xCoord = Math.trunc(((coords[i][0] - minX) / maxX) * ctx.canvas.width);
-					yCoord = Math.trunc(ctx.canvas.height - ((coords[i][1] - minY) / maxY) * ctx.canvas.height);		// inverted
-					startX = xCoord + border;
-					startY = yCoord - border;
-					ctx.lineTo(xCoord + border, yCoord - border);
+					xCoord = Math.trunc(((coords[i][0] - minX) / maxX) * ((ctx.canvas.width - (totalBorder + innerBorder))));
+					yCoord = Math.trunc(ctx.canvas.height - ((coords[i][1] - minY) / maxY) * (ctx.canvas.height - (totalBorder + innerBorder)));		// inverted
+					startX = xCoord + totalBorder;
+					startY = yCoord - totalBorder;
+					ctx.lineTo(startX, startY);
 					ctx.stroke();
 				}		
 				coords.length = 0;
@@ -141,15 +174,22 @@
 				for(let i = 1; i < 13; i++) {
 					id = 'chan' + i;
 					if (channel != i) 
-						document.getElementById(id).style.color = '';
+						document.getElementById(id).style.backgroundColor  = '';
 					else
-						document.getElementById(id).style.color = 'red';
+					{
+						document.getElementById(id).style.backgroundColor  = 'red';
+						valueStr = "Switching to Channel " + i;
+						document.getElementById("inputChannelStatus").value = valueStr;
+					}
 				}
 				socket.emit('send_command', { target: 'serial', command: channel });
 			}
 			
 			function startMeasureOTDR() {
 				console.log("startMeasureOTDR");
+				const canvas = document.getElementById('lineChart');
+				const ctx = canvas.getContext('2d');
+				ctx.clearRect(0, 0, canvas.width, canvas.height);
 				socket.emit('start_measure');
 			}
 			
@@ -179,6 +219,9 @@
 		<button id="chan10" onclick="setInputChannel('10')">Chan 10</button>
 		<button id="chan11" onclick="setInputChannel('11')">Chan 11</button>
 		<button id="chan12" onclick="setInputChannel('12')">Chan 12</button>
+		<br>
+		<br>
+		<input type="text" id="inputChannelStatus" value="No Channel Selected" readonly>
 		<br>
 		<h3>Measure</h3>
 		<button id="startMeasure" onclick="startMeasureOTDR()">Start</button>

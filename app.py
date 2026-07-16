@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, abort
 from flask_socketio import SocketIO
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -9,6 +9,7 @@ import json
 import os
 import serial
 import atexit
+import shutil
 
 #added by me for windows operation
 BAUD_RATE = 9600
@@ -16,13 +17,13 @@ if sys.platform == "win32":
     print("Running on Windows")
     SERIAL_PORT = 'COM6'        # random windows assignment
     CONFIG_FILE_NAME = ".\\config.json" 
-    RESULTS_FILE_PATH = ".\\"
+    RESULTS_FILE_PATH = ".\\results"
     LASTRUN_FILENAME = ".\\lastRun\\trace.txt"
     from waitress import serve
 elif sys.platform == "linux":
     print("Running on Linux")
     CONFIG_FILE_NAME = "./config.json" 
-    RESULTS_FILE_PATH = "./"
+    RESULTS_FILE_PATH = "./results"
     LASTRUN_FILENAME = "./lastRun/trace.txt"
     SERIAL_PORT = '/dev/ttyUSB0' 
 RESULTS_FILE_NAME = 'TestResult.csv'
@@ -32,10 +33,14 @@ lastPort    = "0"
 lastMask    = "0.0.0.0"
 lastGateway = "0.0.0.0"
 lastDate = "0"
+channelSelect = 0
+graphPath = ""
 
 app = Flask(__name__)
 # The secret key is mandatory to encrypt session cookies
 app.config['SECRET_KEY'] = 'goFoton'
+app.config['LOGIN_DISABLED'] = False
+app.config['TESTING'] = False
 #socketio = SocketIO(app, cors_allowed_origins="http://127.0.0.1:5000")      # localhost
 socketio = SocketIO(app, cors_allowed_origins="*")
 
@@ -113,6 +118,7 @@ def login():
     return render_template('login.html')
 
 @app.route('/setup')
+@login_required
 def setup_page():
     json_string = ""
     global lastIpAddr, lastPort, lastMask, lastGateway, lastDate
@@ -142,11 +148,17 @@ def setup_page():
     return render_template('setup.html', data=json_string)
     
 @app.route('/test')
+@login_required
 def test_page():
-    return render_template('test.html')    
+    return render_template('test.html')          
+ 
     
 @app.route('/admin')
-def admin_page():
+@login_required
+def admin_page(): 
+    user_name = current_user.username
+    if user_name is not 'admin':
+        abort(403)  # Returns an HTTP 403 Forbidden error page
     json_string = ""
     if os.path.exists(CONFIG_FILE_NAME):
         with open(CONFIG_FILE_NAME, "r", encoding="utf-8") as f:
@@ -164,6 +176,21 @@ def gotoDashboard():
 def dashboard():
     return render_template('dashboard.html')
     
+@socketio.on('refresh_test_page')
+def refresh_test_page():
+    print("refresh_test_page")
+    if os.path.exists(graphPath):
+        sendResults(graphPath)
+    if channelSelect != 0:
+        socketio.emit('device_data', {'source': 'serial', 'payload': str(channelSelect)})
+        
+@socketio.on('update_graph')
+def update_graph(message):
+    print("update_graph called")
+    filePath = message.get('file')
+    if filePath.exists():
+        sendResults(filePath)     
+
 @socketio.on('update_json')
 def update_json(message):
     print("update_json called")
@@ -335,17 +362,47 @@ def read_data_in_chunks(file_path, chunk_size=100):
         if chunk:           # Yield any remaining rows
             yield chunk
             
-def sendResults():
+def sendResults(tracePath):
     print("sendResults called")  
-    for chunk in read_data_in_chunks(LASTRUN_FILENAME, chunk_size=1024):
+    #for chunk in read_data_in_chunks(LASTRUN_FILENAME, chunk_size=1024):
+    for chunk in read_data_in_chunks(tracePath, chunk_size=1024):
         #print(chunk)
         socketio.emit('data_chunk', {'points': chunk})
         socketio.sleep(0.1) # Yield to event loop to prevent buffer bloat   
     socketio.emit('data_complete')
     
+def limitResults():
+    print("limitResults called")  
+    if not os.path.exists(RESULTS_FILE_PATH):
+        print("Results Directory Not Found")
+        return
+        
+    subdirs = []
+    with os.scandir(RESULTS_FILE_PATH) as entries:
+        for entry in entries:
+            if entry.is_dir():
+                subdirs.append(entry.path)
+                
+    subdirs.sort(key=lambda d: os.path.getmtime(d), reverse=False)
+    
+    excess_count = len(subdirs) - 10
+    if excess_count <= 0:
+        print("No subdirectories to delete.")
+        return
+
+    # Delete the oldest ones
+    for subdir in subdirs[:excess_count]:
+        try:
+            mtime = os.path.getmtime(subdir)
+            shutil.rmtree(subdir)
+            print(f"Deleted: {subdir} (Last modified: {time.ctime(mtime)})")
+        except Exception as e:
+            print(f"Failed to delete {subdir}: {e}")        
+
 @socketio.on('start_measure')
 def startMeasureOTDR():
     print("startMeasureOTDR called")
+    global graphPath
     with open(CONFIG_FILE_NAME, "r", encoding="utf-8") as f:
         config = json.load(f)
         f.close()
@@ -364,8 +421,15 @@ def startMeasureOTDR():
             EndThreshold = getOtdrEndThresholdofFiber(client)
             NonReflectThreshold = 0
             nGIR = 1.4670
-            #StartMeasure(client,'OPWILL', int(AverageMode), int(Lambda_nm), int(Distance_m), int(PulseWidth_ns), int(MeasureTime_s), nGIR, float(EndThreshold), NonReflectThreshold, RESULTS_FILE_PATH, RESULTS_FILE_NAME)
-            sendResults()
+            flg, tracePath = StartMeasure(client,'OPWILL', int(AverageMode), int(Lambda_nm), int(Distance_m), int(PulseWidth_ns), int(MeasureTime_s), nGIR, float(EndThreshold), NonReflectThreshold, RESULTS_FILE_PATH, RESULTS_FILE_NAME)
+            print(tracePath) 
+            print(flg)            
+            if flg:
+                sendResults(tracePath)
+                graphPath = tracePath
+            else:
+                graphPath = ""
+            limitResults()
             
 @socketio.on('stop_measure')
 def stopMeasureOTDR():
@@ -382,6 +446,7 @@ def stopMeasureOTDR():
 @socketio.on('send_command')
 def send_command(message):
     print("send_command")
+    global channelSelect
     target = message.get('target')
     command = message.get('command')
     if target == 'serial':
@@ -395,6 +460,7 @@ def send_command(message):
             string_data = byte_data.decode("utf-8").strip()
             #print(string_data)
             socketio.emit('device_data', {'source': 'serial', 'payload': string_data})
+            channelSelect = string_data
         except Exception as e:
             print(f"Serial Error: {e}")
     elif target == 'network':
@@ -445,7 +511,7 @@ def otdr_mode(message):
         port   = config["NET"][1]    
         client = CLientSocketConnectToOtdr(ipAddr, int(port))    
         if client is not None:
-            setOtdrMode(client, arg1)
+            ret = setOtdrMode(client, arg1)
             print(ret)
                     
 @app.route('/logout')

@@ -19,15 +19,21 @@
 			<option value="1550">1550 nm</option>
 		</select>
 		<br>
-		<br>
-		<button onclick="updateConfig()">Set Parameters</button>
 		<h3>Download Software</h3>
+		<input type="radio" id="OTDRMode" name="mode" value="otdr" onclick=toggleOtdrMode() checked />
+		<label for="OTDRMode">OTDR Mode</label>
+		<input type="radio" id="DownloadMode" name="mode" value="download" onclick=toggleOtdrMode()  />
+		<label for="DownloadMode">Download Mode</label>
+		<br>
+		<br>
 		<form>
 			<input type="file" id="file-upload" name="filename">
 			<br>
 			<br>
-			<button onclick="downloadSoftware()">Download</button>
+			<button id=downLoad onclick="downloadSoftware()">Download</button>
 		</form>
+		<br>
+		<button onclick="updateConfig()">Set Parameters</button>
 		<h3> </h3>
 		<a href="{{ url_for('gotoDashboard') }}">
 			<button type="button">Main Menu</button>
@@ -62,6 +68,12 @@
 			{			
 				document.getElementById('wavelength-select').value = config.WLS[0];
 			}
+			//DLMODE
+			if (Object.hasOwn(config, 'DLMODE'))
+			{			
+				document.getElementById('DownloadMode').checked = (config.DLMODE[0] != 0);
+				toggleOtdrMode();
+			}
 			// end screen controls init
 			
 			let next = true;
@@ -87,8 +99,25 @@
 					document.getElementById('connectionTimeRange').value = val;
 			}
 			
+			function toggleOtdrMode() {
+				val1 = 0;
+				if(document.getElementById('DownloadMode').checked)
+					val1 = 1;
+				if(val1 != 1)
+				{
+					document.getElementById('file-upload').style.visibility = "hidden";
+					document.getElementById('downLoad').style.visibility = "hidden";
+				}
+				else
+				{
+					document.getElementById('file-upload').style.visibility = "visible";
+					document.getElementById('downLoad').style.visibility = "visible";
+				}	
+				socket.emit('otdr_mode', {cmd: 'DLMODE', arg1: val1});
+			}
+			
 			async function updateConfig() {
-				for(let i = 0; i<2; i++)
+				for(let i = 0; i<3; i++)
 				{
 					console.log(i);
 					let val1 = '';
@@ -105,11 +134,15 @@
 							next = false;
 							break;
 						case 1:				
-							val1 = document.getElementById('wavelength-select').value;;	
+							val1 = document.getElementById('wavelength-select').value;
 							socket.emit('update_json', {cmd: 'WLS', arg1: val1, arg2: val2, arg3: val3, arg4: val4, arg5: val5, arg6: val6});
 							next = false;
 							break;				
-					}
+						case 2:				
+							val1 = (document.getElementById('DownloadMode').checked == true);
+							socket.emit('update_json', {cmd: 'DLMODE', arg1: val1, arg2: val2, arg3: val3, arg4: val4, arg5: val5, arg6: val6});
+							next = false;
+							break;					}
 					while(!next)
 						await sleep(5)	// 5msec
 				}
