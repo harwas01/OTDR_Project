@@ -1,12 +1,24 @@
 <!doctype html>
 <html lang="en">
 	<head>
+		<style>
+			a {
+				text-decoration: none;
+			}
+		</style>
 		<meta charset="UTF-8">
 		<title>OTDR Test</title>
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
 		<!-- <script src="https://socket.io"></script> -->
-		<script type="text/javascript" charset="utf-8">
-		
+		<script type="text/javascript" charset="utf-8">		
+			// graph data
+			var coords = [];
+			var minX = 999.9;
+			var maxX = 0.0;
+			var minY = 999.9;
+			var maxY = 0.0;
+			var xMaxPos = 200;
+
 			const serverHost = window.location.host; 
 			url = "http://" + serverHost
 			console.log('Server Host:', url);
@@ -16,6 +28,30 @@
 				console.log('Connected to Raspberry Pi server!');
 				socket.emit('refresh_test_page');
 			});
+			
+			config = JSON.parse({{ data | tojson | safe }});
+			
+			localConfig = JSON.parse({{ localData | tojson | safe }});
+			
+			launchCableLength = 50
+			if (Object.hasOwn(localConfig, 'launchLength'))
+			{
+				launchCableLength = localConfig.launchLength;
+			}
+			
+			if (Object.hasOwn(config, 'STP'))
+			{
+				if(config.STP[0] != "1")		// not auto distance mode
+				{
+					let xMaxPosMeters = config.STP[1];	// cannot exceed specified distance expressed in meters
+					xMaxPos = xMaxPosMeters / 1000;
+				}
+				else
+				{
+					xMaxPos = "200";
+				}
+				console.log("xMaxPos = " + xMaxPos);
+			}
 
 			// Listen for device data
 			socket.on('device_data', (data) => {
@@ -30,28 +66,65 @@
 				}
 			});
 			
-			
-			// graph data
-			let coords = [];
-			let minX = 999.9;
-			let maxX = 0.0;
-			let minY = 999.9;
-			let maxY = 0.0;
+			let timeoutId = 0;
+
+			function startTimer() {
+				console.log("startTimer");
+				if(timeoutId != 0)
+					clearTimeout(timeoutId); 
+				timeoutId = setTimeout(() => {
+					coords = [];
+					minX = 999.9;
+					maxX = 0.0;
+					minY = 999.9;
+					maxY = 0.0;
+					socket.emit('refresh_test_page');
+					console.log("refresh_test_page");
+				}, 1000);
+			}
+
+
 			socket.on('data_chunk', (msg) => {
-				//console.log("received a chunk");
-				msg.points.forEach(point => {
+				console.log("received a chunk");
+				let expandedMinY = document.getElementById('dBMinInput').value;
+				let expandedMaxY = document.getElementById('dBMaxInput').value;
+				document.getElementById("measurementStatus").value = "Transferring Data";
+				msg.points.forEach(point => {				
 					//console.log(`Received Point -> x: ${point.x}, y: ${point.y}`);
 					x = parseFloat(point.x);
 					y = parseFloat(point.y);
-					if(x < minX)
-						minX = x;
-					if(x > maxX)
-						maxX = x;
-					if(y < minY)
-						minY = y;
-					if(y > maxY)
-						maxY = y;
-					coords.push([x, y])
+					if(x < Number(xMaxPos))
+					{
+						if(document.getElementById('expanded').checked)
+						{
+							if(y < expandedMinY)
+							{
+								y = expandedMinY;
+							}
+							else if(y > expandedMaxY)
+							{
+								y = expandedMaxY;	
+							}
+						}				
+						if(x < minX)
+						{
+							minX = x;
+						}
+						else if(x > maxX)
+						{
+							maxX = x;
+						}
+						if(y < minY)
+						{
+							minY = y;
+						}
+						else if(y > maxY)
+						{
+							maxY = y;
+							console.log("new MaxY = " + maxY);
+						}
+						coords.push([x, y])
+					}
 				});
 				// Append or process point dictionary chunks here
 			});
@@ -62,7 +135,13 @@
 			console.log("MaxY = " + maxY);
 
 			socket.on('data_complete', () => {
-				console.log('All data transmission complete!');
+				document.getElementById("measurementStatus").value = "Rendering Waveform";
+				document.getElementById("fullRange").hidden = false;
+				document.getElementById("fullRangeLabel").hidden = false;
+				document.getElementById("expanded").hidden = false;
+				document.getElementById("expandedLabel").hidden = false;
+
+
 				//for(let i=0; i<coords.length; i++)
 				//{
 				//	console.log(coords[i]);
@@ -97,8 +176,8 @@
 				let vTop = innerBorder;	
 				let vHash = 6;
 				let vStep = (vBottom - vTop) / vHash;		// counting up from bottom				
-				let vVal = maxY/vHash;
-				// console.log("vStep = " + vStep);				
+				let vVal = (maxY-minY)/vHash;
+				console.log("maxY = " + maxY + " minY = " + minY + " vHash = " + vHash + " vVal = " + vVal);
 				// console.log("vBottom = " + vBottom);				
 				// console.log("vTop = " + vTop);
 				// console.log("vVal = " + vVal);
@@ -111,12 +190,12 @@
 					ctx.lineWidth = 1;           	  	
 					ctx.stroke();	
 					
-					vFloat = vVal * i;
-					vDisplay = vFloat.toFixed(1)
+					let fVal = Number((vVal * i));
+					fVal += Number(minY);
+					let vFloat = parseFloat(fVal); // no leading zeros for toFixed
+					let vDisplay = vFloat.toFixed(1)
 					let vString = vDisplay.toString().padStart(1, '0');
-					
-					//let vString = (vVal * i).toString().padStart(2, '0');
-					// console.log(vString);
+				
 					ctx.fillText(vString, 0, vBottom - (vStep * i) + 9);
 				}	
 				
@@ -144,9 +223,11 @@
 					ctx.stroke(); 
 					
 					hFloat = hVal * i;
+					hFloat = parseFloat(hFloat);		// no leading zeros for toFixed
 					hDisplay = hFloat.toFixed(1)
 					let hString = hDisplay.toString().padStart(1, '0');
-					ctx.fillText(hString, hLeft + (hStep * i) - 15, ctx.canvas.height - 20);
+					//ctx.fillText(hString, hLeft + (hStep * i) - 15, ctx.canvas.height - 20);
+					ctx.fillText(hString, hLeft + (hStep * i) - 23, ctx.canvas.height - 20);
 				}
 				
 				ctx.fillText("kM (Distance)", ctx.canvas.width/2, ctx.canvas.height);
@@ -160,15 +241,85 @@
 				{
 					ctx.beginPath();
 					ctx.moveTo(startX, startY);
-					xCoord = Math.trunc(((coords[i][0] - minX) / maxX) * ((ctx.canvas.width - (totalBorder + innerBorder))));
-					yCoord = Math.trunc(ctx.canvas.height - ((coords[i][1] - minY) / maxY) * (ctx.canvas.height - (totalBorder + innerBorder)));		// inverted
+					let xCoord = Math.trunc(((coords[i][0] - minX) / maxX) * ((ctx.canvas.width - (totalBorder + innerBorder))));
+					let yCoord = Math.trunc(ctx.canvas.height - ((coords[i][1] - minY) / maxY) * (ctx.canvas.height - (totalBorder + innerBorder)));		// inverted
+					//console.log("ctx.canvas.height - ((coords[i][1] - minY) / maxY ", ctx.canvas.height - ((coords[i][1] - minY) / maxY));
+					//console.log("yCoord = ", yCoord);
+					//console.log("coords[i][1] = ", coords[i][1]);
 					startX = xCoord + totalBorder;
 					startY = yCoord - totalBorder;
-					ctx.lineTo(startX, startY);
-					ctx.stroke();
+					if(coords[i][0] > (launchCableLength/1000))				// dead zone .05 kilometers or 50 meters
+					{
+						ctx.lineTo(startX, startY);
+						ctx.stroke();
+					}
 				}		
 				coords.length = 0;
 			});
+			
+			function toggleMagnify() 
+			{
+				let val = document.getElementById('expanded').checked;
+				if(val)
+				{
+					document.getElementById("dBMinRange").hidden = false; 	// true for testing
+					document.getElementById("dBMinInput").hidden = false;	// true for testing
+					document.getElementById("dBMaxRange").hidden = false;
+					document.getElementById("dBMaxInput").hidden = false;
+					document.getElementById("dbMinLabel").hidden = false;	// true for testing
+					document.getElementById("dbMaxLabel").hidden = false;
+					document.getElementById("dBMinRange").min = minY * 100;
+					document.getElementById("dBMinInput").min = minY;
+					document.getElementById("dBMinRange").max = maxY * 100;
+					document.getElementById("dBMinInput").max = maxY;
+					document.getElementById("dBMaxRange").min = minY * 100
+					document.getElementById("dBMaxInput").min = minY;
+					document.getElementById("dBMaxRange").max = maxY * 100;
+					document.getElementById("dBMaxInput").max = maxY;
+					document.getElementById("dBMinRange").value = minY * 100;
+					document.getElementById("dBMinInput").value = Number(minY).toFixed(1);
+					document.getElementById("dBMaxRange").value = maxY * 100;
+					document.getElementById("dBMaxInput").value = Number(maxY).toFixed(1);
+				}
+				else
+				{
+					document.getElementById("dBMinRange").hidden = true;
+					document.getElementById("dBMinInput").hidden = true;
+					document.getElementById("dBMaxRange").hidden = true;
+					document.getElementById("dBMaxInput").hidden = true;
+					document.getElementById("dbMinLabel").hidden = true;
+					document.getElementById("dbMaxLabel").hidden = true;
+					socket.emit('refresh_test_page');
+				}					
+			}
+			
+			function updateDBMinText(val)
+			{
+				console.log("updateDBMinText = " + val);
+				startTimer();
+				document.getElementById('dBMinInput').value = (Number(val) / 100).toFixed(1);
+			}
+
+			function updateDBMinSlider(val) 
+			{
+				console.log("updateDBMinSlider = " + val);
+				startTimer();
+				document.getElementById('dBMinRange').value = val * 100;
+			}	
+			
+			function updateDBMaxText(val)
+			{
+				console.log("updateDBMaxText = " + val);
+				startTimer();
+				document.getElementById('dBMaxInput').value = (Number(val) / 100).toFixed(1);
+			}
+
+			function updateDBMaxSlider(val) 
+			{
+				console.log("updateDBMaxSlider = " + val);
+				startTimer();
+				document.getElementById('dBMaxRange').value = val*100;
+			}
     		
 			function setInputChannel(channel) {
 				for(let i = 1; i < 13; i++) {
@@ -187,6 +338,23 @@
 			
 			function startMeasureOTDR() {
 				console.log("startMeasureOTDR");
+				document.getElementById("measurementStatus").value = "Measuring";
+				document.getElementById("fullRange").hidden = true;
+				document.getElementById("fullRange").checked = true;
+				document.getElementById("fullRangeLabel").hidden = true;
+				document.getElementById("expanded").hidden = true;
+				document.getElementById("expandedLabel").hidden = true;
+				document.getElementById("dBMinRange").hidden = true;
+				document.getElementById("dBMinInput").hidden = true;
+				document.getElementById("dBMaxRange").hidden = true;
+				document.getElementById("dBMaxInput").hidden = true;
+				document.getElementById("dbMinLabel").hidden = true;
+				document.getElementById("dbMaxLabel").hidden = true;
+				coords = [];
+				minX = 999.9;
+				maxX = 0.0;
+				minY = 999.9;
+				maxY = 0.0;
 				const canvas = document.getElementById('lineChart');
 				const ctx = canvas.getContext('2d');
 				ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -206,6 +374,24 @@
 			<canvas id="lineChart" width="600" height="450"></canvas>
 		</div>
 		
+		<h3>Measure</h3>
+		<button id="startMeasure" onclick="startMeasureOTDR()">Start</button>
+		<button id="stopMeasure" onclick="stopMeasureOTDR()">Stop</button>
+		<input type="text" id="measurementStatus" value="" readonly>
+		<input type="radio" id="fullRange" name="displayMode" onclick=toggleMagnify() hidden checked />
+		<label for="displayMode" id="fullRangeLabel" hidden>Full Range</label>
+		<input type="radio" id="expanded" name="displayMode" onclick=toggleMagnify() hidden />
+		<label for="displayMode" id="expandedLabel"  hidden>Magnify</label>
+		<br>
+		<br>
+		<label id="dbMinLabel" hidden>Min dB</label>
+		<input type="range" id="dBMinRange" min="0" max="1000" value="500" class="slider" oninput="updateDBMinText(this.value)" hidden >
+		<input type="text" id="dBMinInput" oninput="updateDBMinSlider(this.value)" placeholder="50" style="width: 120px"; hidden >
+		<label id="dbMaxLabel" hidden>Max dB</label>
+		<input type="range" id="dBMaxRange" min="0" max="1000" value="500" class="slider" oninput="updateDBMaxText(this.value)" hidden >
+		<input type="text" id="dBMaxInput" oninput="updateDBMaxSlider(this.value)" placeholder="50" style="width: 120px"; hidden >
+		<h3> </h3>
+		
 		<h3>Optical Input Channel</h3>
 		<button id="chan1" onclick="setInputChannel('1')">Chan 1</button>
 		<button id="chan2" onclick="setInputChannel('2')">Chan 2</button>
@@ -222,13 +408,13 @@
 		<br>
 		<br>
 		<input type="text" id="inputChannelStatus" value="No Channel Selected" readonly>
-		<br>
-		<h3>Measure</h3>
-		<button id="startMeasure" onclick="startMeasureOTDR()">Start</button>
-		<button id="stopMeasure" onclick="stopMeasureOTDR()">Stop</button>
 		<h3> </h3>
+
 		<a href="{{ url_for('gotoDashboard') }}">
 			<button type="button">Main Menu</button>
 		</a>
+		<a href="{{ url_for('gotoSetup') }}">
+			<button type="button">Setup Page</button>
+		</a>	
 	</body>
 </html>

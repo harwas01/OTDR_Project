@@ -1,6 +1,11 @@
 <!doctype html>
 <html lang="en">
 	<head>
+		<style>
+			a {
+				text-decoration: none;
+			}
+		</style>
 		<meta charset="UTF-8">
 		<title>OTDR Setup</title>
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
@@ -39,14 +44,14 @@
 		<input type="radio" id="fast" name="precisionMode" />
 		<label for="precision">Fast</label>	
 		<h3>Connection Loss Threshold (db)</h3>		
-		<input type="range" id="connectionLossRange" min="1" max="999" value="500" class="slider" oninput="updateLossText(this.value)" >
-		<input type="text" id="connectionLossInput" oninput="updateLossSlider(this.value)" placeholder="5.00" min = "0.01" max = "9.99" style="width: 120px"; >
+		<input type="range" id="connectionLossRange" min="1" max="1000" value="500" class="slider" oninput="updateLossText(this.value)" >
+		<input type="text" id="connectionLossInput" oninput="updateLossSlider(this.value)" placeholder="5.00" min = "0.01" max = "10.00" style="width: 120px"; >
 		<h3>Reflection Threshold (db)</h3>		
 		<input type="range" id="reflectionRange" min="-650" max="-140" value="-400" class="slider" oninput="updateReflectionText(this.value)" >
 		<input type="text" id="reflectionInput" oninput="updateReflectionSlider(this.value)" placeholder="-40.0" min = "-65.0" max = "-14.0" style="width: 120px"; >
 		<h3>Terminal Threshold (db)</h3>		
-		<input type="range" id="terminalRange" min="1" max="999" value="500" class="slider" oninput="updateTerminalText(this.value)" >
-		<input type="text" id="terminalInput" oninput="updateTerminalSlider(this.value)" placeholder="5.00" min = "0.01" max = "9.99"  style="width: 120px"; >
+		<input type="range" id="terminalRange" min="1" max="1000" value="500" class="slider" oninput="updateTerminalText(this.value)" >
+		<input type="text" id="terminalInput" oninput="updateTerminalSlider(this.value)" placeholder="5.00" min = "0.01" max = "10.00"  style="width: 120px"; >
 		<h3>Refractivity (db)</h3>		
 		<input type="range" id="refractivityRange" min="1300" max="1800" value="1500" class="slider" oninput="updateRefractivityText(this.value)" >
 		<input type="text" id="refractivityInput" oninput="updateRefractivitySlider(this.value)" placeholder="1.500" min = "1.300" max = "1.800"  style="width: 120px"; >
@@ -73,23 +78,39 @@
 		<button onclick="updateConfig()">Set Parameters</button>
 		<h3> </h3>
 		<a href="{{ url_for('gotoDashboard') }}">
-			<button type="button">Main Menu</button>
+			<button type="button">Main Menu </button>
 		</a>
+		<a href="{{ url_for('gotoTest') }}">
+			<button type="button">Test Page</button>
+		</a>		
 		<script type="text/javascript" charset="utf-8">
 		
 			const serverHost = window.location.host; 
 			url = "http://" + serverHost
 			console.log('Server Host:', url);
 			const socket = io(url);
-
+			
+			const ALA_MIN = 1;
+			const ALA_MAX = 9999;
+			const STP_DISTANCE_MIN = 500;
+			const STP_DISTANCE_MAX = 200000;
+			const STP_PULSEWIDTH_MIN = 3;
+			const STP_PULSEWIDTH_MAX = 20000;			
+			const THS_MIN = 0.01;
+			const THS_MAX = 9.99;
+			const THR2_MIN = -65;
+			const THR2_MAX = -14;
+			const THF_MIN = .01;
+			const THF_MAX = 9.99;			
+			const IOR_MIN = 1.30;
+			const IOR_MAX = 1.80;	
+			const BSL2_MIN = -90;
+			const BSL2_MAX = -40;
+			
 			socket.on('connect', () => {
 				console.log('Connected to Raspberry Pi server!');
 			});
 
-			// Listen for device data
-			socket.on('device_data', (data) => {
-			});
-			
 			config = JSON.parse({{ data | tojson | safe }});
 			
 			//console.log(config);
@@ -118,11 +139,11 @@
 			if (Object.hasOwn(config, 'STP'))
 			{
 				document.getElementById('distanceMode').checked = (config.STP[0] == "1");
-				toggleDistance();
+				toggleDistance(document.getElementById('distanceMode').checked);
 				document.getElementById('distanceInput').value = config.STP[1];	
 				updateDistanceSlider(config.STP[1]);	
 				document.getElementById('pulseWidthMode').checked = (config.STP[2] == "1");
-				togglePulseWidth();
+				togglePulseWidth(document.getElementById('pulseWidthMode').checked);
 				document.getElementById('pulseWidthInput').value = config.STP[3];	
 				updatePulseWidthSlider(config.STP[3]);		
 				if(config.STP[4] == "0")
@@ -187,8 +208,75 @@
 				next = true;
 			});
 			
+			function limitConfigs()		// cannot prevent dynamic input of numbers that are too small
+			{
+				let val = '';
+				// ALA
+				val = document.getElementById('samplingTimeInput').value;
+				if(val < ALA_MIN)
+					val = ALA_MIN;
+				if(val > ALA_MAX)
+					val = ALA_MAX;
+				document.getElementById('samplingTimeInput').value = val;
+				
+				// STP
+				val = document.getElementById('distanceInput').value;
+				if(val < STP_DISTANCE_MIN)
+					val = STP_DISTANCE_MIN;
+				if(val > STP_DISTANCE_MAX)
+					val = STP_DISTANCE_MAX;
+				document.getElementById('distanceInput').value = val;	
+				val = document.getElementById('pulseWidthInput').value;
+				if(val < STP_PULSEWIDTH_MIN)
+					val = STP_PULSEWIDTH_MIN;
+				if(val > STP_PULSEWIDTH_MAX)
+					val = STP_PULSEWIDTH_MAX;
+				document.getElementById('pulseWidthInput').value = val;
+				
+				// THS
+				val = document.getElementById('connectionLossInput').value;
+				if(val < THS_MIN)
+					val = THS_MIN;
+				if(val > THS_MAX)
+					val = THS_MAX;
+				document.getElementById('connectionLossInput').value = val;	
+				
+				// THR2
+				val = document.getElementById('reflectionInput').value;
+				if(val < THR2_MIN)
+					val = THR2_MIN;
+				if(val > THR2_MAX)
+					val = THR2_MAX;
+				document.getElementById('reflectionInput').value = val;	
+
+				// THF
+				val = document.getElementById('terminalInput').value;
+				if(val < THF_MIN)
+					val = THF_MIN;
+				if(val > THF_MAX)
+					val = THF_MAX;
+				document.getElementById('terminalInput').value = val;	
+
+				// IOR
+				val = document.getElementById('refractivityInput').value;
+				if(val < IOR_MIN)
+					val = IOR_MIN;
+				if(val > IOR_MAX)
+					val = IOR_MAX;
+				document.getElementById('refractivityInput').value = val;	
+				
+				// BSL2 
+				val = document.getElementById('scatteringInput').value;
+				if(val < BSL2_MIN)
+					val = BSL2_MIN;
+				if(val > BSL2_MAX)
+					val = BSL2_MAX;
+				document.getElementById('scatteringInput').value = val;	
+			}	
+
 			async function updateConfig() {
 				console.log("updateConfig");
+				limitConfigs();
 				for(let i = 0; i<10; i++)
 				{
 					console.log(i);
@@ -303,12 +391,14 @@
 				document.getElementById('samplingTimeInput').value = val;
 			}
 
-			function updateSamplingSlider(val) {
-				if(isNumber(val) && (val > 0) && (val < 10000))
+			function updateSamplingSlider(val) 
+			{
+				if(isNumber(val) && (val > 0))
 					document.getElementById('samplingTimeRange').value = val;
 			}
 					
-			function toggleSampling() {
+			function toggleSampling() 
+			{
 				let val = document.getElementById('sampleAuto').checked;
 				if(val)
 				{
@@ -326,8 +416,9 @@
 				document.getElementById('distanceInput').value = val;
 			}
 
-			function updateDistanceSlider(val) {
-				if(isNumber(val) && (val > 0) && (val < 200000))
+			function updateDistanceSlider(val) 
+			{
+				if(isNumber(val) && (val > 0))
 					document.getElementById('distanceRange').value = val;
 			}	
 			
@@ -348,8 +439,9 @@
 				document.getElementById('pulseWidthInput').value = val;
 			}
 
-			function updatePulseWidthSlider(val) {
-				if(isNumber(val) && (val > 2) && (val < 20000))
+			function updatePulseWidthSlider(val)
+			{
+				if(isNumber(val) && (val > 0))
 					document.getElementById('pulseWidthRange').value = val;
 			}		
 
@@ -370,17 +462,21 @@
 				document.getElementById('connectionLossInput').value = val / 100;
 			}
 
-			function updateLossSlider(val) {
-				if(isNumber(val) && (val > .01) && (val < 10.00))
+			function updateLossSlider(val) // range between  .01 and 10
+			{
+				if(isNumber(val) && (val > 0))
 					document.getElementById('connectionLossRange').value = val * 100;
-			}									
+			}								
 
-			function updateReflectionText(val) {
-				document.getElementById('reflectionInput').value = val / 10;
+			function updateReflectionText(val) 
+			{
+				if(isNumber(val))
+					document.getElementById('reflectionInput').value = val / 10;
 			}
 
-			function updateReflectionSlider(val) {
-				if(isNumber(val) && (val < -13) && (val > -65))
+			function updateReflectionSlider(val) // range between -14 and -65
+			{
+				if(isNumber(val))
 					document.getElementById('reflectionRange').value = val * 10;
 			}			
 			
@@ -388,8 +484,9 @@
 				document.getElementById('terminalInput').value = val / 100;
 			}
 
-			function updateTerminalSlider(val) {
-				if(isNumber(val) && (val > .01) && (val < 10.00))
+			function updateTerminalSlider(val) // range between  .01 and 10
+			{
+				if(isNumber(val) && (val > 0))
 					document.getElementById('terminalRange').value = val * 100;
 			}			
 
@@ -397,8 +494,9 @@
 				document.getElementById('refractivityInput').value = val / 1000;
 			}
 
-			function updateRefractivitySlider(val) {
-				if(isNumber(val) && (val > 1.299) && (val < 1.800))
+			function updateRefractivitySlider(val)  // range between 1.30 and 1.800
+			{
+				if(isNumber(val) && (val > 0))
 					document.getElementById('refractivityRange').value = val * 1000;
 			}			
 			
@@ -406,10 +504,15 @@
 				document.getElementById('scatteringInput').value = val / 100;
 			}
 
-			function updateScatteringSlider(val) {
-				if(isNumber(val) && (val < -40) && (val > -90))
+			function updateScatteringSlider(val) // range between -40 and -90
+			{				
+				if(isNumber(val))
+				{
+					document.getElementById('scatteringInput').value = val;
 					document.getElementById('scatteringRange').value = val * 100;
+				}
 			}
+
 		</script>
 	</body>
 </html>

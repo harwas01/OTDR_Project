@@ -2,6 +2,8 @@ from flask import Flask, render_template, request, redirect, url_for, flash, abo
 from flask_socketio import SocketIO
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
+from smbus2 import SMBus, i2c_msg
+from enum import Enum
 
 from OTDRService import *
 
@@ -17,14 +19,16 @@ if sys.platform == "win32":
     print("Running on Windows")
     SERIAL_PORT = 'COM6'        # random windows assignment
     CONFIG_FILE_NAME = ".\\config.json" 
+    LOCAL_CONFIG_FILE_NAME  = ".\\localConfig.json"
     RESULTS_FILE_PATH = ".\\results"
     LASTRUN_FILENAME = ".\\lastRun\\trace.txt"
     from waitress import serve
 elif sys.platform == "linux":
     print("Running on Linux")
-    CONFIG_FILE_NAME = "./config.json" 
-    RESULTS_FILE_PATH = "./results"
-    LASTRUN_FILENAME = "./lastRun/trace.txt"
+    CONFIG_FILE_NAME = "/home/pi/Documents/OTDR_Project/config.json"                   # requires full path for autostartcd 
+    LOCAL_CONFIG_FILE_NAME = "/home/pi/Documents/OTDR_Project/localConfig.json"        # requires full path for autostartcd 
+    RESULTS_FILE_PATH = "/home/pi/Documents/OTDR_Project/results"
+    LASTRUN_FILENAME = "/home/pi/Documents/OTDR_Project/lastRun/trace.txt"
     SERIAL_PORT = '/dev/ttyUSB0' 
 RESULTS_FILE_NAME = 'TestResult.csv'
 
@@ -36,6 +40,24 @@ lastDate = "0"
 channelSelect = 0
 graphPath = ""
 
+I2CBUSADDR = 1
+TLC_ADDR = 0x60
+
+class ledMap(Enum):
+    reg1 = 2
+    reg2 = 3
+    reg3 = 4
+    reg4 = 5
+    reg5 = 9   # layout error
+    reg6 = 8   # layout error
+    reg7 = 7   # layout error
+    reg8 = 6   # layout error
+    reg9 = 10
+    reg10 = 11
+    reg11 = 12
+    reg12 = 13
+
+    
 app = Flask(__name__)
 # The secret key is mandatory to encrypt session cookies
 app.config['SECRET_KEY'] = 'goFoton'
@@ -86,6 +108,111 @@ USERS_DB = {
         password_hash=generate_password_hash("user")
     )
 }
+
+def writeReg(reg , data):
+    status = False
+    try:
+        with SMBus(I2CBUSADDR) as bus:
+            #print("Bus ok")
+            bus.write_byte_data(TLC_ADDR, reg , data)
+        status = True
+    except:
+        status = False
+    return status
+
+def updateLeds():
+    if channelSelect != 0:
+        for index, member in enumerate(ledMap):
+            if str(index + 1) == channelSelect:
+                val = 255
+            else:
+                val = 0
+            #print(f"Reg, Value, Index = {member.value}, {val}, {index}")
+            if writeReg(member.value , val) is not True:
+                print(f"Unable to set TLC59116 Reg {ledEnum[i].value}")      
+
+def clearLeds():              
+    for i in range(12):
+        reg = i + 0x02
+        if writeReg(reg, 0) is not True:
+            print(f"Unable to set TLC59116 Reg {reg}")    
+
+def initTLC59116():
+    # MODE1
+    if writeReg(0x00, 0x00) is not True:
+        print("Unable to set Mode1 of TLC59116")
+
+    # MODE2
+    if writeReg(0x01, 0x04) is not True:
+        print("Unable to set Mode2 of TLC59116")
+
+    # LED0～15 to be PWM
+    if writeReg(0x14, 0xAA) is not True:
+        print("Unable to set Reg 20 of TLC59116")
+    if writeReg(0x15, 0xAA) is not True:
+        print("Unable to set Reg 21 of TLC59116")
+    if writeReg(0x16, 0xAA) is not True:
+        print("Unable to set Reg 22 of TLC59116")
+    if writeReg(0x17, 0xAA) is not True:
+        print("Unable to set Reg 23 of TLC59116")
+
+    # LED OFF
+    clearLeds()
+
+
+# initialization of OTDR Device parameters
+def initOTDR():
+    if os.path.exists(CONFIG_FILE_NAME):
+        with open(CONFIG_FILE_NAME, "r", encoding="utf-8") as f:
+            config = json.load(f)
+            f.close()
+            ipAddr  = config["NET"][0]
+            port    = config["NET"][1]
+            client = CLientSocketConnectToOtdr(ipAddr, int(port))
+            if client is not None:
+                #ALA
+                mode = config["ALA"][0]
+                setting = config["ALA"][1]
+                if True != setOtdrSamplingTime(client, int(mode), int(setting)):               
+                    print("Could not set ALA during initilization")
+                #AVG   
+                avg = config["AVG"][0]
+                if True != setOtdrAverageMode(client, int(avg)):
+                    print("Could not set AVG") 
+                #STP    
+                distanceMode   = config["STP"][0]                   
+                distance       = config["STP"][1]                   
+                pulseWidthMode = config["STP"][2]                   
+                pulseWidth     = config["STP"][3]                   
+                sampleMode     = config["STP"][4]                   
+                if True != setOtdrSTP(client, int(distanceMode), int(distance), int(pulseWidthMode), int(pulseWidth),int(sampleMode)):        
+                    print("Could not set STP during initilization") 
+                #THS    
+                depletionThreshold = config["THS"][0]
+                if True != setOtdrEventLossThresholdofFiber(client, float(depletionThreshold)):
+                    print("Could not set THS during initilization") 
+                #THR2
+                reflexThreshold = config["THR2"][0]
+                if True != setOtdrEventReflectThresholdofFiber(client, float(reflexThreshold)):
+                    print("Could not set THR2 during initilization")                     
+                #THF
+                terminalThreshold = config["THF"][0]
+                if True != setOtdrEndThresholdofFiber(client, float(terminalThreshold)):
+                    print("Could not set THF during initilization") 
+                #IOR
+                refractiveIndex = config["IOR"][0]
+                if True != setOtdrRefractiveIndexofFiber(client, float(refractiveIndex)):
+                    print("Could not set IOR during initilization")                     
+                #BSL2
+                scatteringCoefficient = config["BSL2"][0]
+                if True != setOtdrScatteringCoefofFiber(client, float(scatteringCoefficient)):
+                    print("Could not set BSL2 during initilization") 
+
+# hardware initialization
+initTLC59116()
+initOTDR()
+
+              
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -150,31 +277,58 @@ def setup_page():
 @app.route('/test')
 @login_required
 def test_page():
-    return render_template('test.html')          
+    json_string = ""
+    if os.path.exists(CONFIG_FILE_NAME):
+        with open(CONFIG_FILE_NAME, "r", encoding="utf-8") as f:
+            config = json.load(f)
+            json_string = json.dumps(config)
+    json_local_string = ""
+    if os.path.exists(LOCAL_CONFIG_FILE_NAME):
+        with open(LOCAL_CONFIG_FILE_NAME, "r", encoding="utf-8") as f:
+            local_config = json.load(f)
+            json_local_string = json.dumps(local_config)
+    return render_template('test.html', data=json_string, localData=json_local_string)       
  
     
 @app.route('/admin')
 @login_required
 def admin_page(): 
     user_name = current_user.username
-    if user_name is not 'admin':
+    if user_name != 'admin':
         abort(403)  # Returns an HTTP 403 Forbidden error page
     json_string = ""
+    json_local_string = ""
     if os.path.exists(CONFIG_FILE_NAME):
         with open(CONFIG_FILE_NAME, "r", encoding="utf-8") as f:
             config = json.load(f)
             json_string = json.dumps(config)
-    return render_template('admin.html', data=json_string) 
+    if os.path.exists(LOCAL_CONFIG_FILE_NAME):
+        with open(LOCAL_CONFIG_FILE_NAME, "r", encoding="utf-8") as f:
+            local_config = json.load(f)
+            json_local_string = json.dumps(local_config)
+    return render_template('admin.html', data=json_string, localData=json_local_string)
     
 @app.route('/gotoDashboard')
 def gotoDashboard():
     print("gotoDashboard")
     return redirect(url_for('dashboard'))
     
+@app.route('/gotoTest')
+def gotoTest():
+    print("gotoTest")
+    return redirect(url_for('test_page'))
+   
+
+@app.route('/gotoSetup')
+def gotoSetup():
+    print("gotoSetup")
+    return redirect(url_for('setup_page'))
+
 @app.route('/dashboard')
 @login_required  # Protects this route from logged-out users
 def dashboard():
     return render_template('dashboard.html')
+    
     
 @socketio.on('refresh_test_page')
 def refresh_test_page():
@@ -182,6 +336,7 @@ def refresh_test_page():
     if os.path.exists(graphPath):
         sendResults(graphPath)
     if channelSelect != 0:
+        updateLeds()
         socketio.emit('device_data', {'source': 'serial', 'payload': str(channelSelect)})
         
 @socketio.on('update_graph')
@@ -233,6 +388,29 @@ def update_json(message):
         
     result = {"status": "success", "payload": "Here is your data"}
     socketio.emit('response_data', result)
+    
+@socketio.on('update_local_json')
+def update_local_json(message):
+    print("update_local_json called")
+    key  = message.get('cmd')
+    arg = message.get('arg')
+    
+    new_data = {key: arg}
+    
+    if os.path.exists(LOCAL_CONFIG_FILE_NAME):
+        with open(LOCAL_CONFIG_FILE_NAME, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            data.update(new_data)
+            f.close()
+    else:
+        data = new_data       
+
+    with open(LOCAL_CONFIG_FILE_NAME, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=4)
+        f.close()
+        
+    result = {"status": "success", "payload": "Here is your local data"}
+    socketio.emit('response_local_data', result)
 
 @socketio.on('update_OTDR')
 def update_OTDR(message):
@@ -290,7 +468,9 @@ def update_OTDR(message):
                 distance       = config["STP"][1]                   
                 pulseWidthMode = config["STP"][2]                   
                 pulseWidth     = config["STP"][3]                   
-                sampleMode     = config["STP"][4]                   
+                sampleMode     = config["STP"][4]  
+                if(int(distance) < 500):            # crashes
+                    distance = "500"
                 if True != setOtdrSTP(client, int(distanceMode), int(distance), int(pulseWidthMode), int(pulseWidth),int(sampleMode)):        
                     print("Could not set STP") 
                 #THS    
@@ -345,7 +525,7 @@ def update_OTDR(message):
                     
                 
 
-def read_data_in_chunks(file_path, chunk_size=100):
+def read_data_in_chunks(file_path, chunk_size):
     chunk = []
     with open(file_path, 'r') as f:
         reader = csv.reader(f, delimiter='\t')
@@ -364,8 +544,8 @@ def read_data_in_chunks(file_path, chunk_size=100):
             
 def sendResults(tracePath):
     print("sendResults called")  
-    #for chunk in read_data_in_chunks(LASTRUN_FILENAME, chunk_size=1024):
-    for chunk in read_data_in_chunks(tracePath, chunk_size=1024):
+    #for chunk in read_data_in_chunks(LASTRUN_FILENAME, chunk_size=32768):
+    for chunk in read_data_in_chunks(tracePath, 1024): # must go over in 1 chunk so javascript pesists minY maxY etc... 32768
         #print(chunk)
         socketio.emit('data_chunk', {'points': chunk})
         socketio.sleep(0.1) # Yield to event loop to prevent buffer bloat   
@@ -384,6 +564,8 @@ def limitResults():
                 subdirs.append(entry.path)
                 
     subdirs.sort(key=lambda d: os.path.getmtime(d), reverse=False)
+    print(subdirs)
+    print(len(subdirs))
     
     excess_count = len(subdirs) - 10
     if excess_count <= 0:
@@ -451,6 +633,7 @@ def send_command(message):
     command = message.get('command')
     if target == 'serial':
         try:
+            clearLeds()
             ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=15)     # should not be done here
             time.sleep(2)                                               # waste of time
             cmd = f"{command}".encode('utf-8')
@@ -461,6 +644,7 @@ def send_command(message):
             #print(string_data)
             socketio.emit('device_data', {'source': 'serial', 'payload': string_data})
             channelSelect = string_data
+            updateLeds()
         except Exception as e:
             print(f"Serial Error: {e}")
     elif target == 'network':

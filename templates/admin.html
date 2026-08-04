@@ -19,6 +19,10 @@
 			<option value="1550">1550 nm</option>
 		</select>
 		<br>
+		<h3>Launch Cable Length</h3>
+		<input type="range" id="launchCableLengthRange" min="0" max="500" value="50" class="slider" oninput="updateLaunchCableLength(this.value)" >
+		<input type="text" id="launchCableLengthInput" oninput="updateLaunchCableLengthSlider(this.value)" placeholder="50" style="width: 120px"; >
+		<br>
 		<h3>Download Software</h3>
 		<input type="radio" id="OTDRMode" name="mode" value="otdr" onclick=toggleOtdrMode() checked />
 		<label for="OTDRMode">OTDR Mode</label>
@@ -32,9 +36,10 @@
 			<br>
 			<button id=downLoad onclick="downloadSoftware()">Download</button>
 		</form>
-		<br>
-		<button onclick="updateConfig()">Set Parameters</button>
 		<h3> </h3>
+		<button onclick="updateConfig(); updateLocalConfig();">Set Parameters</button>
+		<br>
+		<br>
 		<a href="{{ url_for('gotoDashboard') }}">
 			<button type="button">Main Menu</button>
 		</a>
@@ -48,12 +53,9 @@
 			socket.on('connect', () => {
 				console.log('Connected to Raspberry Pi server!');
 			});
-			
-			// Listen for device data
-			socket.on('device_data', (data) => {
-			});
-			
+					
 			config = JSON.parse({{ data | tojson | safe }});
+			localConfig = JSON.parse({{ localData | tojson | safe }});
 			
 			// screen controls init
 			//console.log(config);
@@ -74,6 +76,11 @@
 				document.getElementById('DownloadMode').checked = (config.DLMODE[0] != 0);
 				toggleOtdrMode();
 			}
+			if (Object.hasOwn(localConfig, 'launchLength'))
+			{
+				document.getElementById('launchCableLengthInput').value = localConfig.launchLength;
+				updateLaunchCableLengthSlider(localConfig.launchLength);
+			}
 			// end screen controls init
 			
 			let next = true;
@@ -83,6 +90,10 @@
 			socket.on('response_data', function(response) {
 				console.log(response.payload);
 				next = true;
+			})
+
+			socket.on('response_local_data', function(localResponse) {
+				console.log(localResponse.payload);
 			})
 			
 			function isNumber(value) {
@@ -95,8 +106,18 @@
 
 			function updateConnectionTimeSlider(val) {
 				console.log("updateConnectionTimeSlider");
-				if(isNumber(val) && (val > 0) && (val < 7200))
+				if(isNumber(val) && (val > 0) && (val < 7201))
 					document.getElementById('connectionTimeRange').value = val;
+			}
+			
+			function updateLaunchCableLength(val) {
+				document.getElementById('launchCableLengthInput').value = val;
+			}
+
+			function updateLaunchCableLengthSlider(val) {
+				console.log("updateConnectionTimeSlider");
+				if(isNumber(val) && (val > 0) && (val < 501))
+					document.getElementById('launchCableLengthRange').value = val;
 			}
 			
 			function toggleOtdrMode() {
@@ -147,6 +168,12 @@
 						await sleep(5)	// 5msec
 				}
 				socket.emit('update_OTDR', {cmd: 'UPDATE'});
+			}
+			
+			async function updateLocalConfig() {
+				console.log("updateLocalConfig called");
+				val = document.getElementById('launchCableLengthInput').value;
+				socket.emit('update_local_json', {cmd: 'launchLength', arg: val});
 			}
 		</script>
 	</body>

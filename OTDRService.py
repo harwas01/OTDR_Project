@@ -368,6 +368,7 @@ def setOtdrSTP(client,DistanceMode,Distance_m,PluseWidthMode,PulseWidth_ns,Sampl
 	<pulse width>： valid in manual mode only. If input value is invalid or out of range, the closest setting will be used.
 		pulse width selection： 3ns,5ns,10ns,30ns,50ns,100ns,275ns,500ns,1000ns,5000ns,10000ns,20000ns
 	<sample mode>：  0 -- fast      1 -- precise
+    HW - Distance_m less than 500 crashes
 	'''
 	if DistanceMode in range(0,2) and 0<=Distance_m<=200000 and PluseWidthMode in range(0,2) and PulseWidth_ns in range(0,20001) and SampleMode in range(0,2):
 		# request = 'STP %d,%d,%d,%d,%d'%(DistanceMode,Distance_m,PluseWidthMode,PulseWidth_ns,SampleMode)
