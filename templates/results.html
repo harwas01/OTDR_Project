@@ -7,7 +7,7 @@
 			}
 		</style>
 		<meta charset="UTF-8">
-		<title>OTDR Test</title>
+		<title>OTDR Results</title>
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
 		<!-- <script src="https://socket.io"></script> -->
 		<script type="text/javascript" charset="utf-8">		
@@ -26,7 +26,7 @@
 
 			socket.on('connect', () => {
 				console.log('Connected to Raspberry Pi server!');
-				socket.emit('refresh_test_page');
+				//socket.emit('refresh_test_page');
 			});
 			
 			config = JSON.parse({{ data | tojson | safe }});
@@ -56,56 +56,7 @@
 			}
 
 			// Listen for device data
-			socket.on('device_data', (data) => {
-				if(data.source == 'serial')
-				{
-					//console.log(data.payload);
-					let id = 'chan' + data.payload;
-					//console.log(id);
-					document.getElementById(id).style.backgroundColor  = 'green';
-					valueStr = "Channel " + data.payload + " Selected";
-					document.getElementById("inputChannelStatus").value = valueStr;
-				}
-			});
-			
-			let timeoutId = 0;
 
-			function startTimer() {
-				console.log("startTimer");
-				if(timeoutId != 0)
-					clearTimeout(timeoutId); 
-				timeoutId = setTimeout(() => {
-					coords = [];
-					minX = 999.9;
-					maxX = 0.0;
-					minY = 999.9;
-					maxY = 0.0;
-					socket.emit('refresh_test_page');
-					console.log("refresh_test_page");
-				}, 1000);
-			}
-			
-			let intervalTimerId = null;
-			
-			function startBlinkTimer() {
-				console.log("startBlinkTimer");
-				if (intervalTimerId === null) { 
-					intervalTimerId = setInterval(() => {
-						console.log("interval timer");
-						if(document.getElementById("measurementStatus").value == "Measuring")
-							document.getElementById("measurementStatus").value = "";
-						else
-							document.getElementById("measurementStatus").value = "Measuring";
-					}, 1000); // 1000 milliseconds = 1 second
-				}
-			}
-
-			function stopBlinkTimer() {
-				if (intervalTimerId !== null) { 
-					clearInterval(intervalTimerId); 
-					intervalTimerId = null;  
-				}
-			}
 			
 			socket.on('data_chunk', (msg) => {
 				console.log("received a chunk");
@@ -281,158 +232,41 @@
 				coords.length = 0;
 			});
 			
-			function toggleMagnify() 
-			{
-				let val = document.getElementById('expanded').checked;
-				if(val)
-				{
-					document.getElementById("dBMinRange").hidden = false; 	// true for testing
-					document.getElementById("dBMinInput").hidden = false;	// true for testing
-					document.getElementById("dBMaxRange").hidden = false;
-					document.getElementById("dBMaxInput").hidden = false;
-					document.getElementById("dbMinLabel").hidden = false;	// true for testing
-					document.getElementById("dbMaxLabel").hidden = false;
-					document.getElementById("dBMinRange").min = minY * 100;
-					document.getElementById("dBMinInput").min = minY;
-					document.getElementById("dBMinRange").max = maxY * 100;
-					document.getElementById("dBMinInput").max = maxY;
-					document.getElementById("dBMaxRange").min = minY * 100
-					document.getElementById("dBMaxInput").min = minY;
-					document.getElementById("dBMaxRange").max = maxY * 100;
-					document.getElementById("dBMaxInput").max = maxY;
-					document.getElementById("dBMinRange").value = minY * 100;
-					document.getElementById("dBMinInput").value = Number(minY).toFixed(1);
-					document.getElementById("dBMaxRange").value = maxY * 100;
-					document.getElementById("dBMaxInput").value = Number(maxY).toFixed(1);
-				}
-				else
-				{
-					document.getElementById("dBMinRange").hidden = true;
-					document.getElementById("dBMinInput").hidden = true;
-					document.getElementById("dBMaxRange").hidden = true;
-					document.getElementById("dBMaxInput").hidden = true;
-					document.getElementById("dbMinLabel").hidden = true;
-					document.getElementById("dbMaxLabel").hidden = true;
-					socket.emit('refresh_test_page');
-				}					
-			}
+			const selectElement = document.getElementById("results");
+			const items = ["Apple", "Banana", "Cherry"];
 			
-			function updateDBMinText(val)
-			{
-				console.log("updateDBMinText = " + val);
-				startTimer();
-				document.getElementById('dBMinInput').value = (Number(val) / 100).toFixed(1);
-			}
+			selectElement.innerHTML = ""; 
+			selectElement.options.length = 1; 
 
-			function updateDBMinSlider(val) 
-			{
-				console.log("updateDBMinSlider = " + val);
-				startTimer();
-				document.getElementById('dBMinRange').value = val * 100;
-			}	
-			
-			function updateDBMaxText(val)
-			{
-				console.log("updateDBMaxText = " + val);
-				startTimer();
-				document.getElementById('dBMaxInput').value = (Number(val) / 100).toFixed(1);
+			items.forEach(item => {
+				selectElement.add = item.toLowerCase();
 			}
-
-			function updateDBMaxSlider(val) 
-			{
-				console.log("updateDBMaxSlider = " + val);
-				startTimer();
-				document.getElementById('dBMaxRange').value = val*100;
-			}
-    		
-			function setInputChannel(channel) {
-				for(let i = 1; i < 13; i++) {
-					id = 'chan' + i;
-					if (channel != i) 
-						document.getElementById(id).style.backgroundColor  = '';
-					else
-					{
-						document.getElementById(id).style.backgroundColor  = 'red';
-						valueStr = "Switching to Channel " + i;
-						document.getElementById("inputChannelStatus").value = valueStr;
-					}
-				}
-				socket.emit('send_command', { target: 'serial', command: channel });
-			}
-			
-			function startMeasureOTDR() {
-				console.log("startMeasureOTDR");
-				startBlinkTimer();
-				document.getElementById("measurementStatus").value = "Measuring";
-				document.getElementById("fullRange").hidden = true;
-				document.getElementById("fullRange").checked = true;
-				document.getElementById("fullRangeLabel").hidden = true;
-				document.getElementById("expanded").hidden = true;
-				document.getElementById("expandedLabel").hidden = true;
-				document.getElementById("dBMinRange").hidden = true;
-				document.getElementById("dBMinInput").hidden = true;
-				document.getElementById("dBMaxRange").hidden = true;
-				document.getElementById("dBMaxInput").hidden = true;
-				document.getElementById("dbMinLabel").hidden = true;
-				document.getElementById("dbMaxLabel").hidden = true;
-				coords = [];
-				minX = 999.9;
-				maxX = 0.0;
-				minY = 999.9;
-				maxY = 0.0;
-				const canvas = document.getElementById('lineChart');
-				const ctx = canvas.getContext('2d');
-				ctx.clearRect(0, 0, canvas.width, canvas.height);
-				socket.emit('start_measure');
-			}
-			
-			function stopMeasureOTDR() {
-				socket.emit('stop_measure');
-				console.log("stopMeasureOTDR");
-			}
-			
+});
+					
+    					
 		</script>
 	</head>
 	<body style="font-family: sans-serif; padding: 20px;">
-		<h2>Test</h2>	
+		<h2>Results</h2>	
 		<div class="chart-container">
 			<canvas id="lineChart" width="600" height="450"></canvas>
 		</div>
 		
-		<h3>Measure</h3>
-		<button id="startMeasure" onclick="startMeasureOTDR()">Start</button>
-		<button id="stopMeasure" onclick="stopMeasureOTDR()">Stop</button>
-		<input type="text" id="measurementStatus" value="" readonly>
-		<input type="radio" id="fullRange" name="displayMode" onclick=toggleMagnify() hidden checked />
-		<label for="displayMode" id="fullRangeLabel" hidden>Full Range</label>
-		<input type="radio" id="expanded" name="displayMode" onclick=toggleMagnify() hidden />
-		<label for="displayMode" id="expandedLabel"  hidden>Magnify</label>
+		<h3>Select</h3>
 		<br>
 		<br>
-		<label id="dbMinLabel" hidden>Min dB</label>
-		<input type="range" id="dBMinRange" min="0" max="1000" value="500" class="slider" oninput="updateDBMinText(this.value)" hidden >
-		<input type="text" id="dBMinInput" oninput="updateDBMinSlider(this.value)" placeholder="50" style="width: 120px"; hidden >
-		<label id="dbMaxLabel" hidden>Max dB</label>
-		<input type="range" id="dBMaxRange" min="0" max="1000" value="500" class="slider" oninput="updateDBMaxText(this.value)" hidden >
-		<input type="text" id="dBMaxInput" oninput="updateDBMaxSlider(this.value)" placeholder="50" style="width: 120px"; hidden >
-		<h3> </h3>
-		
-		<h3>Optical Input Channel</h3>
-		<button id="chan1" onclick="setInputChannel('1')">Chan 1</button>
-		<button id="chan2" onclick="setInputChannel('2')">Chan 2</button>
-		<button id="chan3" onclick="setInputChannel('3')">Chan 3</button>
-		<button id="chan4" onclick="setInputChannel('4')">Chan 4</button>
-		<button id="chan5" onclick="setInputChannel('5')">Chan 5</button>
-		<button id="chan6" onclick="setInputChannel('6')">Chan 6</button>
-		<button id="chan7" onclick="setInputChannel('7')">Chan 7</button>
-		<button id="chan8" onclick="setInputChannel('8')">Chan 8</button>
-		<button id="chan9" onclick="setInputChannel('9')">Chan 9</button>
-		<button id="chan10" onclick="setInputChannel('10')">Chan 10</button>
-		<button id="chan11" onclick="setInputChannel('11')">Chan 11</button>
-		<button id="chan12" onclick="setInputChannel('12')">Chan 12</button>
-		<br>
-		<br>
-		<input type="text" id="inputChannelStatus" value="No Channel Selected" readonly>
+		<label for="results">Choose Result</label>
+		<select name="results" id="results">
+			<option value="result1">Result1</option>
+			<option value="result2">Result2</option>
+			<option value="result3">Result3</option>
+			<option value="result4">Result4</option>		
+			<option value="result5">Result5</option>
+			<option value="result6">Result6</option>
+			<option value="result7">Result7</option>
+			<option value="result8">Result8</option>		
+			<option value="result9">Result9</option>
+			<option value="result10">Result10</option>			</select>
 		<h3> </h3>
 
 		<a href="{{ url_for('gotoDashboard') }}">

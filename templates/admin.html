@@ -23,18 +23,30 @@
 		<input type="range" id="launchCableLengthRange" min="0" max="500" value="50" class="slider" oninput="updateLaunchCableLength(this.value)" >
 		<input type="text" id="launchCableLengthInput" oninput="updateLaunchCableLengthSlider(this.value)" placeholder="50" style="width: 120px"; >
 		<br>
-		<h3>Download Software</h3>
+		<h3>Firmware Update</h3>
+		<label for="softwareVersion">Installed Version: </label>
+		<input type="text" id="softwareVersion" placeholder="0.0.0" style="width: 60px"; readonly>
+		<br>
+		<br>
+		<form action="/upload" method="POST" enctype="multipart/form-data">			
+			<input type="file" id="firmware-upload" name="firmware-upload" accept=".gfb" required>
+			<br>
+			<br>
+			<button id=firmwareUpload type="submit">Upload</button>
+		</form>
+		<br>
+		<h3>OTDR Update</h3>
 		<input type="radio" id="OTDRMode" name="mode" value="otdr" onclick=toggleOtdrMode() checked />
 		<label for="OTDRMode">OTDR Mode</label>
-		<input type="radio" id="DownloadMode" name="mode" value="download" onclick=toggleOtdrMode()  />
-		<label for="DownloadMode">Download Mode</label>
+		<input type="radio" id="UploadMode" name="mode" value="upload" onclick=toggleOtdrMode()  />
+		<label for="UploadMode">Upload Mode</label>
 		<br>
 		<br>
 		<form>
-			<input type="file" id="file-upload" name="filename">
+			<input type="file" id="otdr-upload" name="otdr-upload">
 			<br>
 			<br>
-			<button id=downLoad onclick="downloadSoftware()">Download</button>
+			<button id=otdrUpload onclick="uploadOTDRFirmware)">Upload</button>
 		</form>
 		<h3> </h3>
 		<button onclick="updateConfig(); updateLocalConfig();">Set Parameters</button>
@@ -54,8 +66,9 @@
 				console.log('Connected to Raspberry Pi server!');
 			});
 					
-			config = JSON.parse({{ data | tojson | safe }});
-			localConfig = JSON.parse({{ localData | tojson | safe }});
+			var config = JSON.parse({{ data | tojson | safe }});
+			var localConfig = JSON.parse({{ localData | tojson | safe }});
+			var softwareVersion = JSON.parse({{ versionData | tojson | safe }});
 			
 			// screen controls init
 			//console.log(config);
@@ -73,7 +86,7 @@
 			//DLMODE
 			if (Object.hasOwn(config, 'DLMODE'))
 			{			
-				document.getElementById('DownloadMode').checked = (config.DLMODE[0] != 0);
+				document.getElementById('UploadMode').checked = (config.DLMODE[0] != 0);
 				toggleOtdrMode();
 			}
 			if (Object.hasOwn(localConfig, 'launchLength'))
@@ -81,9 +94,14 @@
 				document.getElementById('launchCableLengthInput').value = localConfig.launchLength;
 				updateLaunchCableLengthSlider(localConfig.launchLength);
 			}
+			if (Object.hasOwn(softwareVersion, 'version'))
+			{
+				console.log("version");
+				document.getElementById('softwareVersion').value = softwareVersion.version;
+			}			
 			// end screen controls init
 			
-			let next = true;
+			var next = true;
 			
 			const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 			
@@ -95,7 +113,7 @@
 			socket.on('response_local_data', function(localResponse) {
 				console.log(localResponse.payload);
 			})
-			
+						
 			function isNumber(value) {
 				return !isNaN(value) && !isNaN(parseFloat(value));
 			}
@@ -120,19 +138,24 @@
 					document.getElementById('launchCableLengthRange').value = val;
 			}
 			
+			function  getSoftwareVersion()
+			{
+				socket.emit('getVersion');
+			}
+			
 			function toggleOtdrMode() {
 				val1 = 0;
-				if(document.getElementById('DownloadMode').checked)
+				if(document.getElementById('UploadMode').checked)
 					val1 = 1;
 				if(val1 != 1)
 				{
-					document.getElementById('file-upload').style.visibility = "hidden";
-					document.getElementById('downLoad').style.visibility = "hidden";
+					document.getElementById('otdr-upload').style.visibility = "hidden";
+					document.getElementById('otdrUpload').style.visibility = "hidden";
 				}
 				else
 				{
-					document.getElementById('file-upload').style.visibility = "visible";
-					document.getElementById('downLoad').style.visibility = "visible";
+					document.getElementById('otdr-upload').style.visibility = "visible";
+					document.getElementById('otdrUpload').style.visibility = "visible";
 				}	
 				socket.emit('otdr_mode', {cmd: 'DLMODE', arg1: val1});
 			}
@@ -160,7 +183,7 @@
 							next = false;
 							break;				
 						case 2:				
-							val1 = (document.getElementById('DownloadMode').checked == true);
+							val1 = (document.getElementById('UploadMode').checked == true);
 							socket.emit('update_json', {cmd: 'DLMODE', arg1: val1, arg2: val2, arg3: val3, arg4: val4, arg5: val5, arg6: val6});
 							next = false;
 							break;					}

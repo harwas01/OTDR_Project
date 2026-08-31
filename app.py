@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash, abo
 from flask_socketio import SocketIO
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 from smbus2 import SMBus, i2c_msg
 from enum import Enum
 
@@ -12,6 +13,7 @@ import os
 import serial
 import atexit
 import shutil
+import subprocess
 
 #added by me for windows operation
 BAUD_RATE = 9600
@@ -43,15 +45,21 @@ graphPath = ""
 I2CBUSADDR = 1
 TLC_ADDR = 0x60
 
+version_data = {"version": "1.0.0"}
+
 class ledMap(Enum):
     reg1 = 2
     reg2 = 3
     reg3 = 4
     reg4 = 5
-    reg5 = 9   # layout error
-    reg6 = 8   # layout error
-    reg7 = 7   # layout error
-    reg8 = 6   # layout error
+#    reg5 = 9   # layout error
+#    reg6 = 8   # layout error
+#    reg7 = 7   # layout error
+#    reg8 = 6   # layout error
+    reg5 = 6
+    reg6 = 7
+    reg7 = 8
+    reg8 = 9
     reg9 = 10
     reg10 = 11
     reg11 = 12
@@ -63,6 +71,10 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'goFoton'
 app.config['LOGIN_DISABLED'] = False
 app.config['TESTING'] = False
+UPLOAD_FOLDER = os.path.join(os.getcwd(), 'uploads')
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
 #socketio = SocketIO(app, cors_allowed_origins="http://127.0.0.1:5000")      # localhost
 socketio = SocketIO(app, cors_allowed_origins="*")
 
@@ -289,7 +301,21 @@ def test_page():
             json_local_string = json.dumps(local_config)
     return render_template('test.html', data=json_string, localData=json_local_string)       
  
-    
+@app.route('/results')
+@login_required
+def results_page():
+    json_string = ""
+    if os.path.exists(CONFIG_FILE_NAME):
+        with open(CONFIG_FILE_NAME, "r", encoding="utf-8") as f:
+            config = json.load(f)
+            json_string = json.dumps(config)
+    json_local_string = ""
+    if os.path.exists(LOCAL_CONFIG_FILE_NAME):
+        with open(LOCAL_CONFIG_FILE_NAME, "r", encoding="utf-8") as f:
+            local_config = json.load(f)
+            json_local_string = json.dumps(local_config)
+    return render_template('results.html', data=json_string, localData=json_local_string)       
+ 
 @app.route('/admin')
 @login_required
 def admin_page(): 
@@ -298,6 +324,7 @@ def admin_page():
         abort(403)  # Returns an HTTP 403 Forbidden error page
     json_string = ""
     json_local_string = ""
+    json_version_string = ""
     if os.path.exists(CONFIG_FILE_NAME):
         with open(CONFIG_FILE_NAME, "r", encoding="utf-8") as f:
             config = json.load(f)
@@ -306,7 +333,8 @@ def admin_page():
         with open(LOCAL_CONFIG_FILE_NAME, "r", encoding="utf-8") as f:
             local_config = json.load(f)
             json_local_string = json.dumps(local_config)
-    return render_template('admin.html', data=json_string, localData=json_local_string)
+    json_version_string = json.dumps(version_data)
+    return render_template('admin.html', data=json_string, localData=json_local_string, versionData=json_version_string)
     
 @app.route('/gotoDashboard')
 def gotoDashboard():
@@ -318,7 +346,11 @@ def gotoTest():
     print("gotoTest")
     return redirect(url_for('test_page'))
    
-
+@app.route('/gotoResults')
+def gotoResults():
+    print("gotoResults")
+    return redirect(url_for('results_page'))
+    
 @app.route('/gotoSetup')
 def gotoSetup():
     print("gotoSetup")
@@ -329,6 +361,29 @@ def gotoSetup():
 def dashboard():
     return render_template('dashboard.html')
     
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    if 'firmware-upload' not in request.files:
+        return 'No file part in the form submitted.', 400
+        
+    file = request.files['firmware-upload']
+
+    if file.filename == '':
+        return 'No file selected for uploading.', 400
+        
+    if file:
+        filename = secure_filename(file.filename)       # security/XSS vulnerabilities    
+        print(filename)
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        print(file_path)
+        file.save(file_path)       
+        result = subprocess.run(['sh', './firmwareUpdate/extractUpdate.sh'], capture_output=True, text=True)            # must extract using exisiting extractUpdate.sh
+        print("Exit Code for extractUpdate: ", result.returncode)
+        result = subprocess.run(['sh', './uploads/firmwareUpdate/processUpdate.sh'], capture_output=True, text=True)    # once extracted can use latest processUpdate.sh
+        print("Exit Code for processUpdate: ", result.returncode)
+        #return f'File successfully uploaded and saved to: {file_path}'  
+        os.system("sudo reboot")
+        return "Update Complete, System will reboot", 200
     
 @socketio.on('refresh_test_page')
 def refresh_test_page():
@@ -603,7 +658,7 @@ def startMeasureOTDR():
             EndThreshold = getOtdrEndThresholdofFiber(client)
             NonReflectThreshold = 0
             nGIR = 1.4670
-            flg, tracePath = StartMeasure(client,'OPWILL', int(AverageMode), int(Lambda_nm), int(Distance_m), int(PulseWidth_ns), int(MeasureTime_s), nGIR, float(EndThreshold), NonReflectThreshold, RESULTS_FILE_PATH, RESULTS_FILE_NAME)
+            flg, tracePath = StartMeasure(client,'OPWILL', int(AverageMode), int(Lambda_nm), int(Distance_m), int(PulseWidth_ns), int(MeasureTime_s), nGIR, float(EndThreshold), NonReflectThreshold, RESULTS_FILE_PATH, RESULTS_FILE_NAME, channelSelect)
             print(tracePath) 
             print(flg)            
             if flg:
@@ -697,6 +752,10 @@ def otdr_mode(message):
         if client is not None:
             ret = setOtdrMode(client, arg1)
             print(ret)
+            
+@app.route('/getVersion')
+def getVersion():
+    socketio.emit('version', {'payload': SOFTWARE_VERSION})
                     
 @app.route('/logout')
 @login_required
@@ -707,5 +766,5 @@ def logout():
 
 if __name__ == '__main__':
 #    app.run(debug=True)                                # pc
-    app.run(host='0.0.0.0', port=5000, debug=True)      # raspberry pi
+    app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)      # cannot be used with gunicorn and nginx
         

@@ -6,6 +6,7 @@
     <style>
         body { font-family: Arial, sans-serif; padding: 40px; text-align: center; }
         .logout-btn { display: inline-block; padding: 10px 20px; background-color: #dc3545; color: white; text-decoration: none; border-radius: 4px; margin-top: 20px; }
+		.hide-completely { display: none; }
     </style>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
 	<script type="text/javascript" charset="utf-8">
@@ -30,6 +31,9 @@
 					window.location.href = "{{ url_for('test_page') }}";
 					break;
 				case 3:
+					window.location.href = "{{ url_for('results_page') }}";
+					break;
+				case 4:
 					window.location.href = "{{ url_for('admin_page') }}";
 					break;
 			}
@@ -48,8 +52,9 @@
     <p>Select From the following pages.</p>
 	<button id="setup" style="padding: 10px 20px; font-size: 18px;" onclick="selectPage(1)">Setup</button>
 	<button id="test"  style="padding: 10px 20px; font-size: 18px;" onclick="selectPage(2)">Test</button>
+	<button class='hide-completely' id="results"  style="padding: 10px 20px; font-size: 18px;" onclick="selectPage(3)">Results</button>
 	{% if current_user.is_authenticated and current_user.username == 'admin' %}
-		<button id="admin" style="padding: 10px 20px; font-size: 18px;" onclick="selectPage(3)">Admin</button>    
+		<button id="admin" style="padding: 10px 20px; font-size: 18px;" onclick="selectPage(4)">Admin</button>    
 	{% endif %}
 	<br>
     <a href="{{ url_for('logout') }}" class="logout-btn">Log Out</a>

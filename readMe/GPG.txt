@@ -1,0 +1,35 @@
+This works:
+
+To encrypt a file using GPG so it can be decrypted on any computer without entering a password,
+you must use asymmetric encryption with a key pair that has no passphrase.
+Because symmetric encryption (password-only) strictly requires manual typing on entry,
+asymmetric encryption allows you to carry your private key (exported as a file) to any computer
+and decrypt the file instantly without a password prompt.
+
+Step 1: Create a Key Pair with No Passphrase - Windows Linux (wsl)
+Run the generation command on your main computer:
+gpg --pinentry-mode loopback --full-generate-key
+
+Select RSA and RSA (default).Choose a key size (e.g., 4096 bits).Set the expiration (e.g., 0 for does not expire).
+Enter your name and email address.
+Crucial: When the pop-up asks you to create a password, leave it completely blank and click OK / Continue. 
+Then a couple of carriage returns
+Confirm that you explicitly want an unprotected key.
+
+Step 2: Export Your Private KeyTo decrypt this on other computers without a password, you must export your private key:
+Only needs to be done once on Windows Linux (wsl)
+gpg --export-secret-keys --armor "harold.wasserman@gofoton.com" > goFoton_key.asc
+
+Step 3. Move the private key gofoton_key.asc to the target - only needs to be done once using WinSCP.
+Then on the target via putty in firmwareUpdate directory:
+gpg --import goFoton_key.asc
+
+Step 4: Encrypt the File - Windows Linux (wsl) - in createUpdate.sh
+Encrypt the file using the recipient email address you specified during the key creation:
+gpg --recipient "harold.wasserman@gofoton.com" --encrypt update.tar.gz
+This outputs an encrypted file named update.tar.gz.gpg.
+Then createUpdate.sh renames update.tar.gz.gpg update.gfb (gofoton binary)
+
+Step 5: Decrypting on Any Other Computer - in extractUpdate.sh
+Decrypt the file completely non-interactively:
+gpg --batch --decrypt update.gfb > update.tar.gz

@@ -1274,8 +1274,7 @@ def ResponseMeasDataToFile(dict1,FileName,FileFormat='json'):
 	else:
 		pass
 
-
-def StartMeasure(client,Vendor='OPWILL',OtdrMode=1,Lambda_nm=1550,MeasureLength_m=0,PulseWidth_ns=0,MeasureTime_s=0,nGIR=1.4670,EndThreshold=5.0,NonReflectThreshold=0,FilePath = "E:/OTDR/",FileName='TestResult.csv'):
+def StartMeasure(client,Vendor='OPWILL',OtdrMode=1,Lambda_nm=1550,MeasureLength_m=0,PulseWidth_ns=0,MeasureTime_s=0,nGIR=1.4670,EndThreshold=5.0,NonReflectThreshold=0,FilePath = "E:/OTDR/",FileName='TestResult.csv', channelSelect='1'):
 	'''
 	Vendor: vendor ID (string) default as'OPWILL'
 	OtdrMode:OTDR average mode, 0(real-time) | 1(average), default as 1
@@ -1395,15 +1394,15 @@ def StartMeasure(client,Vendor='OPWILL',OtdrMode=1,Lambda_nm=1550,MeasureLength_
 		setOtdrEndThresholdofFiber(client = client,Threshold=EndThreshold)
 		
 		# create tesat data storage index
-		filepath = FilePath+'/'+'AvgMode'+str(OtdrMode)+'_WL_%dnm'%Lambda_nm+'_MeasureLength_%dm'%MeasureLength_m+'_PulseWidth_%dns/'%PulseWidth_ns
+		Time = time.strftime("%Y%m%d%H%M%S", time.localtime())
+		Time1 = time.strftime("%m_%d_%Y-%H:%M:%S", time.localtime())
+		chan = f"{int(channelSelect):02d}"
+		filepath = FilePath + '/' + chan + '-' + Time1 + '/'
+		csvfilename = filepath + '/' + FileName
 		dir = os.path.dirname(filepath)
 		if not os.path.exists(dir):
 			os.makedirs(dir)
-		# start measurement
-		Time1 = time.strftime("%Y.%m.%d-%H:%M:%S", time.localtime())
-		Time = time.strftime("%Y%m%d%H%M%S", time.localtime())
-		csvfilename = FilePath+'/'+FileName
-		
+		# start measurement		
 		ret_status = setOtdrLD(client = client,status=CMD_HOST_START_MEASURE)
 		AVERes_list = []
 		STPRes_List = []
